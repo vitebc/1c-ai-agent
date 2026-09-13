@@ -20,7 +20,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from app.agent import ToolRegistry, run_agent
 from app.config import settings
+from app.db.session import SessionFactory
 from app.llm import OpenAICompatibleLLM
+from app.rag import build_embeddings, make_kb_search
 from app.tools import MOCK_ONEC_TOOLS
 
 THRESHOLD = 0.9
@@ -38,14 +40,17 @@ async def main() -> int:
         repetition_penalty=settings.llm_repetition_penalty,
         enable_thinking=settings.llm_enable_thinking,
     )
-    registry = ToolRegistry(MOCK_ONEC_TOOLS)
+    embeddings = build_embeddings(settings.embeddings_provider, settings.tei_base_url)
+    registry = ToolRegistry(MOCK_ONEC_TOOLS + [make_kb_search(SessionFactory, embeddings)])
     questions = json.loads((HERE / "questions.json").read_text(encoding="utf-8"))
 
     completed = hits = clean = 0
     for i, item in enumerate(questions, 1):
-        q, expected = item["q"], item["expected"]
+        q, expected, profile = item["q"], item["expected"], item.get("profile", "all")
         try:
-            res = await run_agent(llm=llm, registry=registry, user_message=q, max_rounds=settings.agent_max_rounds)
+            res = await run_agent(
+                llm=llm, registry=registry, user_message=q, access_profile=profile, max_rounds=settings.agent_max_rounds
+            )
         except Exception as e:
             print(f"[{i:02d}] EXC {q!r}: {type(e).__name__}: {e}")
             print("Проверь LLM_BASE_URL / LLM_API_KEY / LLM_MODEL в .env — дальше нет смысла.")
@@ -56,7 +61,7 @@ async def main() -> int:
         hits += done and hit
         clean += done and res.tool_errors == 0
         mark = "OK " if done and hit else "FAIL"
-        print(f"[{i:02d}] {mark} exp={expected} got={res.tool_calls} errs={res.tool_errors} | {q}")
+        print(f"[{i:02d}] {mark} exp={expected} prof={profile} got={res.tool_calls} errs={res.tool_errors} | {q}")
         print(f"      -> {res.answer[:150].replace(chr(10), ' ')}")
 
     total = len(questions)

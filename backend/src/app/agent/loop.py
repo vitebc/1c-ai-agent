@@ -56,13 +56,14 @@ async def run_agent(
     registry: ToolRegistry,
     user_message: str,
     user_id: str = "dev",
+    access_profile: str = "all",
     max_rounds: int = 6,
 ) -> AgentResult:
     messages: list[dict[str, Any]] = [
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user", "content": user_message},
     ]
-    ctx = ToolContext(user_id=user_id)
+    ctx = ToolContext(user_id=user_id, access_profile=access_profile)
     called: list[str] = []
     errors = 0
 

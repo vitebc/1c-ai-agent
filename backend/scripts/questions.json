@@ -22,5 +22,12 @@
   {"q": "Продажи за март 2026 по дням.", "expected": "run_skd_report"},
   {"q": "Какой долг у Василька?", "expected": "get_counterparty"},
   {"q": "Привет! Что ты умеешь?", "expected": "none"},
-  {"q": "Спасибо, всё понятно.", "expected": "none"}
+  {"q": "Спасибо, всё понятно.", "expected": "none"},
+  {"q": "Какой срок возврата товара надлежащего качества?", "expected": "search_knowledge_base"},
+  {"q": "Какая скидка при заказе 100 офисных стульев?", "expected": "search_knowledge_base", "profile": "sales"},
+  {"q": "Кто утверждает списание дебиторки на 80 тысяч рублей?", "expected": "search_knowledge_base", "profile": "accounting"},
+  {"q": "Как часто инвентаризируется розничный склад?", "expected": "search_knowledge_base"},
+  {"q": "Есть ли отчёт с разбивкой продаж по дням?", "expected": "search_knowledge_base"},
+  {"q": "Что нужно, чтобы завести нового контрагента?", "expected": "search_knowledge_base", "profile": "sales"},
+  {"q": "Кто списывает дебиторку свыше 50 тысяч?", "expected": "search_knowledge_base", "profile": "sales"}
 ]

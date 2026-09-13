@@ -1,0 +1,8 @@
+# СИНТЕТИКА. Все компании, цифры и регламенты выдуманы — фикстуры для
+# разработки и eval-набора. Реальные документы сюда не класть.
+
+В `backend/synth_docs/*.md` лежат выдуманные регламенты ООО «Ромашка».
+Профили доступа (`access_profile` при инжесте):
+- `vozvraty.md`, `sklad.md`, `otchety.md` — `all` (видны всем);
+- `skidki.md`, `kontragenty.md` — `sales`;
+- `debitorka.md` — `accounting`.

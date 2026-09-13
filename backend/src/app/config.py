@@ -28,6 +28,10 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql+asyncpg://agent:agent@localhost:5432/agentdb"
 
+    # Эмбеддинги: 'fake' (dev/test без моделей) или 'tei' (профиль rag в compose).
+    embeddings_provider: str = "fake"
+    tei_base_url: str = "http://localhost:8081"
+
     # MCP-прокси к 1С (профиль onec в docker-compose.yml).
     onec_mcp_url: str = "http://localhost:8000"
 

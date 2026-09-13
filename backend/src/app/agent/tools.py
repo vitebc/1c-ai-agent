@@ -17,6 +17,9 @@ from pydantic import BaseModel
 @dataclass(frozen=True)
 class ToolContext:
     user_id: str  # идентификатор пользователя 1С из токена сессии
+    # Профиль прав для фильтрации retrieval (см. AGENTS.md, «Схема запросов»).
+    # Резолвится вызывающей стороной (чат-эндпоинт — из таблицы users).
+    access_profile: str = "all"
 
 
 ToolHandler = Callable[[Any, ToolContext], Coroutine[Any, Any, str]]

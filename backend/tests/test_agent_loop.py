@@ -3,24 +3,11 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any
 
 from app.agent import AgentResult, ToolRegistry, run_agent
 from app.llm import AssistantMessage, ToolCall
 from app.tools import MOCK_ONEC_TOOLS
-
-
-class FakeLLM:
-    """Отдаёт заготовленные ответы по очереди, записывает входящие сообщения."""
-
-    def __init__(self, script: list[AssistantMessage]) -> None:
-        self._script = list(script)
-        self.seen_messages: list[list[dict[str, Any]]] = []
-
-    async def complete(self, messages: list[dict[str, Any]], tools: list[dict[str, Any]]) -> AssistantMessage:
-        # Копия: петля дописывает в тот же список по ходу раундов.
-        self.seen_messages.append(list(messages))
-        return self._script.pop(0)
+from tests.fake_llm import FakeLLM
 
 
 def _run(llm: FakeLLM, question: str = "тест", max_rounds: int = 6) -> AgentResult:
