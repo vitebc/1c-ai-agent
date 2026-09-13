@@ -82,6 +82,11 @@ docker compose --profile onec up -d           # + MCP-прокси к тесто
 
 Линтеры также гоняются pre-commit: `pre-commit install && pre-commit run --all-files`.
 
+## Git
+
+Remote — `origin` (https://github.com/vitebc/1c-ai-agent.git), ветка `main`.
+По завершении каждого шага: коммит + `git push origin main`. Дерево держать чистым.
+
 ## Навыки 1С-разработки (cc-1c-skills)
 
 - В `.agents/skills/` лежат 79 скилов из https://github.com/Nikolay-Shirokov/cc-1c-skills (копия, не сабмодуль). Источник зафиксирован в `skills-lock.json`.
