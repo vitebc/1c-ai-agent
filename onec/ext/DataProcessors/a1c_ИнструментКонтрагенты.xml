@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MetaDataObject xmlns="http://v8.1c.ru/8.3/MDClasses" xmlns:app="http://v8.1c.ru/8.2/managed-application/core" xmlns:cfg="http://v8.1c.ru/8.1/data/enterprise/current-config" xmlns:cmi="http://v8.1c.ru/8.2/managed-application/cmi" xmlns:ent="http://v8.1c.ru/8.1/data/enterprise" xmlns:lf="http://v8.1c.ru/8.2/managed-application/logform" xmlns:style="http://v8.1c.ru/8.1/data/ui/style" xmlns:sys="http://v8.1c.ru/8.1/data/ui/fonts/system" xmlns:v8="http://v8.1c.ru/8.1/data/core" xmlns:v8ui="http://v8.1c.ru/8.1/data/ui" xmlns:web="http://v8.1c.ru/8.1/data/ui/colors/web" xmlns:win="http://v8.1c.ru/8.1/data/ui/colors/windows" xmlns:xen="http://v8.1c.ru/8.3/xcf/enums" xmlns:xpr="http://v8.1c.ru/8.3/xcf/predef" xmlns:xr="http://v8.1c.ru/8.3/xcf/readable" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="2.20">
+	<DataProcessor uuid="0ff829a1-cdaf-4a03-b90c-c3bba60569df">
+		<InternalInfo>
+			<xr:GeneratedType name="DataProcessorObject.a1c_ИнструментКонтрагенты" category="Object">
+				<xr:TypeId>1cdcc80a-f442-43e3-8de0-7fa11c5e253c</xr:TypeId>
+				<xr:ValueId>06a8a29a-31df-499e-ae42-101241e7fc5f</xr:ValueId>
+			</xr:GeneratedType>
+			<xr:GeneratedType name="DataProcessorManager.a1c_ИнструментКонтрагенты" category="Manager">
+				<xr:TypeId>2bef3857-653e-40cd-9747-db421d0d5e04</xr:TypeId>
+			<xr:ValueId>ecbeafcf-93d5-46eb-b2ff-8f5b7ac06cb5</xr:ValueId>
+			</xr:GeneratedType>
+		</InternalInfo>
+		<Properties>
+			<Name>a1c_ИнструментКонтрагенты</Name>
+			<Synonym>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Карточки контрагентов (инструмент)</v8:content>
+				</v8:item>
+			</Synonym>
+			<Comment>Read-only инструмент ИИ-агента. Запись не реализована.</Comment>
+			<UseStandardCommands>true</UseStandardCommands>
+			<DefaultForm/>
+			<AuxiliaryForm/>
+			<IncludeHelpInContents>false</IncludeHelpInContents>
+			<ExtendedPresentation/>
+			<Explanation/>
+		</Properties>
+		<ChildObjects/>
+	</DataProcessor>
+</MetaDataObject>

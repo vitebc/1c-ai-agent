@@ -14,6 +14,8 @@ dependencies = [
     "alembic>=1.13",
     "pgvector>=0.3",
     "httpx>=0.27",
+    # MCP-клиент к прокси 1С (пин как у апстрима vladimir-kharin/1c_mcp).
+    "mcp>=1.8.0,<2.0.0",
 ]
 
 [dependency-groups]

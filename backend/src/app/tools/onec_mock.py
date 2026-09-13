@@ -7,11 +7,10 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Literal, TypedDict
-
-from pydantic import BaseModel, Field
+from typing import Any, TypedDict
 
 from app.agent.tools import ToolContext, ToolDefinition
+from app.onec.schemas import CounterpartyArgs, SkdReportArgs, StockArgs
 
 # --- Тестовые данные -----------------------------------------------------------
 
@@ -49,29 +48,9 @@ _SALES: list[SalesRow] = [
     {"sku": "Кресло", "warehouse": "Розничный", "qty": 22, "sum": 330000},
 ]
 
-# --- Схемы аргументов ----------------------------------------------------------
-
-
-class SkdReportArgs(BaseModel):
-    """Отчёт СКД по готовому макету из каталога."""
-
-    report: Literal["sales_by_warehouse", "debtors"]
-    period: str = Field(pattern=r"^\d{4}-(Q[1-4]|H[12]|Y)$", examples=["2026-Q1"])
-    warehouse: str | None = Field(default=None, description="Фильтр по складу, только для sales_by_warehouse")
-    limit: int = Field(default=20, le=100)
-
-
-class CounterpartyArgs(BaseModel):
-    """Карточка контрагента по названию (подстрока) или ИНН."""
-
-    query: str = Field(min_length=2)
-
-
-class StockArgs(BaseModel):
-    """Остатки номенклатуры по складам."""
-
-    sku: str = Field(min_length=2)
-    warehouse: str | None = None
+# --- Схемы аргументов — общий контракт, см. app.onec.schemas --------------------
+# (SkdReportArgs, CounterpartyArgs, StockArgs импортированы выше и используются
+# в MOCK_ONEC_TOOLS ниже без изменений.)
 
 
 # --- Обработчики ---------------------------------------------------------------
