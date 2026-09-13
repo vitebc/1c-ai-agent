@@ -27,3 +27,6 @@ uv run python scripts/smoke_tools.py
 
 Нужны рабочие `LLM_BASE_URL` / `LLM_API_KEY` / `LLM_MODEL` в `.env`.
 Вопросы — в `scripts/questions.json` (`expected` — имя инструмента или `none`).
+
+Базовый прогон 2026-09-13 (DeepSeek API, `deepseek-flash`, мок-инструменты):
+completed 24/24, choice 24/24 = 1.00, clean 24/24 (без ERROR-ретраев).
