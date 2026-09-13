@@ -66,9 +66,9 @@ Backend (выполнять из `backend/`):
 ```bash
 uv sync
 uv run pytest
-uv run ruff check src tests
-uv run ruff format --check src tests
-uv run mypy src
+uv run ruff check src tests scripts
+uv run ruff format --check src tests scripts
+uv run mypy src tests scripts/smoke_tools.py
 uv run uvicorn app.main:app --reload --app-dir src
 ```
 

@@ -4,19 +4,19 @@ repos:
     hooks:
       - id: backend-ruff-check
         name: "backend: ruff check"
-        entry: bash -c 'cd backend && uv run ruff check src tests'
+        entry: bash -c 'cd backend && uv run ruff check src tests scripts'
         language: system
         pass_filenames: false
         files: ^backend/
       - id: backend-ruff-format
         name: "backend: ruff format --check"
-        entry: bash -c 'cd backend && uv run ruff format --check src tests'
+        entry: bash -c 'cd backend && uv run ruff format --check src tests scripts'
         language: system
         pass_filenames: false
         files: ^backend/
       - id: backend-mypy
         name: "backend: mypy (strict)"
-        entry: bash -c 'cd backend && uv run mypy src'
+        entry: bash -c 'cd backend && uv run mypy src tests scripts/smoke_tools.py'
         language: system
         pass_filenames: false
         files: ^backend/
