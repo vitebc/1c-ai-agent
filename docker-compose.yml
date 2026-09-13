@@ -1,0 +1,59 @@
+# Dev-контур на VPS (без GPU — llama-server сюда не входит, см. AGENTS.md).
+#
+# Всегда:            docker compose up -d postgres
+# RAG (шаг 2):       docker compose --profile rag up -d
+# 1С через прокси:   docker compose --profile onec up -d   (MCP_ONEC_URL -> тестовая база)
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-agent}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-agent}
+      POSTGRES_DB: ${POSTGRES_DB:-agentdb}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-agent}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # CPU-сервис эмбеддингов (deepvk/USER-bge-m3, кириллица). Тяжёлый образ (~2-3 ГБ
+  # с моделью), поэтому за профилем rag — понадобится на шаге 2 (RAG).
+  tei:
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.7
+    profiles: ["rag"]
+    restart: unless-stopped
+    environment:
+      MODEL_ID: ${TEI_MODEL_ID:-deepvk/USER-bge-m3}
+    ports:
+      - "${TEI_PORT:-8081}:80"
+    volumes:
+      - tei-data:/data
+
+  # Python-прокси из форка vladimir-kharin/1c_mcp: Streamable HTTP + per-user OAuth2.
+  # MCP_ONEC_URL указывает на тестовую базу 1С (Windows-VM пользователя).
+  mcp-proxy:
+    image: ${MCP_PROXY_IMAGE:-ghcr.io/placeholder/1c-mcp-proxy:latest}
+    profiles: ["onec"]
+    restart: unless-stopped
+    environment:
+      # Обязательна при использовании профиля onec (иначе прокси некуда ходить).
+      # Через ${...:-} а не :?, чтобы `up -d postgres` работал без настроенной 1С.
+      MCP_ONEC_URL: ${MCP_ONEC_URL:-}
+      MCP_ONEC_SERVICE_ROOT: mcp
+      MCP_AUTH_MODE: ${MCP_AUTH_MODE:-none}
+      MCP_ONEC_USERNAME: ${MCP_ONEC_USERNAME:-}
+      MCP_ONEC_PASSWORD: ${MCP_ONEC_PASSWORD:-}
+      MCP_PORT: 8000
+    ports:
+      - "${MCP_PROXY_PORT:-8000}:8000"
+
+volumes:
+  postgres-data:
+  tei-data:

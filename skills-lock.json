@@ -1,0 +1,491 @@
+{
+  "version": 1,
+  "skills": {
+    "1c-query-opt": {
+      "source": "arman-kudaibergenov/1c-ai-development-kit",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/1c-query-opt/SKILL.md",
+      "computedHash": "805c2579c9aa263f333db2e968f9ea1a717f20602657763c78bae11ff128da4e"
+    },
+    "cf-edit": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/cf-edit/SKILL.md",
+      "computedHash": "d93cbc1b2f17b59b47f12bb7a8456bf48b0f5ac246c65135b5cc2d78bbed954e"
+    },
+    "cf-info": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/cf-info/SKILL.md",
+      "computedHash": "6930e8f52389b6dae29fa90a887e78fb9f0acc143a3cade23606d57568d2d41e"
+    },
+    "cf-init": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/cf-init/SKILL.md",
+      "computedHash": "c4f67e0d638566bfc0146acc575a85134c8fd0543b2941960a0f32199541787a"
+    },
+    "cf-validate": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/cf-validate/SKILL.md",
+      "computedHash": "b9eb07c3df3b084ac9add06dbb7735d45b3d197e211f786f594a5a8a3f503bed"
+    },
+    "cfe-borrow": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/cfe-borrow/SKILL.md",
+      "computedHash": "f366ebae1ee4d7ef6afd2c716003d2dccc93203dcaf9d67160ce12ead95c18db"
+    },
+    "cfe-diff": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/cfe-diff/SKILL.md",
+      "computedHash": "021e2dd0c3049efb1699ee41335928f4df2e25365eddc67cf942f96db2a9693c"
+    },
+    "cfe-init": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/cfe-init/SKILL.md",
+      "computedHash": "d1ad4659a9ef004b97d28e1e37d942cee3ed7bd366834098523adb732aa13497"
+    },
+    "cfe-patch-method": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/cfe-patch-method/SKILL.md",
+      "computedHash": "d6258eb4eeb2912ac535fa31039a9451bab9e76be912bc0b72c8098d085353de"
+    },
+    "cfe-validate": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/cfe-validate/SKILL.md",
+      "computedHash": "356bca1baaf3781bb53cdc716c1b66d1ecc1cb86f13480d17dee78d5b13aef4b"
+    },
+    "db-cfe-admin": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/db-cfe-admin/SKILL.md",
+      "computedHash": "81ed3e53b21f6a72296218c08daceb9185b2c889657da8b276f4e7efab1c3332"
+    },
+    "db-create": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/db-create/SKILL.md",
+      "computedHash": "be78cea7f5cb5eeead325b325b2e7cf067033d1a1ac432ca8991b3c243192f4d"
+    },
+    "db-dump-cf": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/db-dump-cf/SKILL.md",
+      "computedHash": "0b5e79d0731645248509d5692401598e58dbd6325797bc65f41710d11adb9bf9"
+    },
+    "db-dump-dt": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/db-dump-dt/SKILL.md",
+      "computedHash": "825d330973bf68afb92e3d2554dc92fb7457f0f9950b3730926533c82fb0a16d"
+    },
+    "db-dump-xml": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/db-dump-xml/SKILL.md",
+      "computedHash": "d53bc7febdc535770bf9d43cc55454b445a07b629f7da02414a9c7b9ab8f850a"
+    },
+    "db-list": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/db-list/SKILL.md",
+      "computedHash": "2729b8b173b8a581dcadbcb47724d6f5724d585297ed16f71ba141d5f00fea28"
+    },
+    "db-load-cf": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/db-load-cf/SKILL.md",
+      "computedHash": "b22d4c4d2030c7384dbd8d9c0e0d1557cd0961ffcc41ed2684a75f69540e21b2"
+    },
+    "db-load-dt": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/db-load-dt/SKILL.md",
+      "computedHash": "4f8741d54d31d84069fb0c8bfdfa7aa0de755bf8508eea802c492af8c9b61070"
+    },
+    "db-load-git": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/db-load-git/SKILL.md",
+      "computedHash": "babe770c88c80c9879645a86eaa3548ef5a60981be654792aaa07f3ac81711c3"
+    },
+    "db-load-xml": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/db-load-xml/SKILL.md",
+      "computedHash": "81bc2f7277c8383e36469099be9e86d397d4026ce6072557b12ab0dc73018c60"
+    },
+    "db-repo": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/db-repo/SKILL.md",
+      "computedHash": "477f2ad069b259cdf64d655c489893f4748259ee8ac31dfcb58a09cd4e34dc42"
+    },
+    "db-run": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/db-run/SKILL.md",
+      "computedHash": "7ea1d65b810013af5d14dbc78e9f40076ce40836e157a8cd3d85029f59eeff7b"
+    },
+    "db-update": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/db-update/SKILL.md",
+      "computedHash": "50d44cb75ce22c8154899d957576bc7d64ab07193ea1956666f115dec955d484"
+    },
+    "epf-bsp-add-command": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/epf-bsp-add-command/SKILL.md",
+      "computedHash": "8944ac8baf2a200006be7c1a8a52cb87f23597df50de79294a64f84a4c92fe88"
+    },
+    "epf-bsp-init": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/epf-bsp-init/SKILL.md",
+      "computedHash": "0daab22eab8cca36b7a643b29158fae2f2d087ed019e70d294f7d13262fbd272"
+    },
+    "epf-build": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/epf-build/SKILL.md",
+      "computedHash": "5cce9f12081504f576e2a4833b2e9cec4529843ecef64cde888a4909421f5687"
+    },
+    "epf-dump": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/epf-dump/SKILL.md",
+      "computedHash": "8f7b762cece567d3c7694c31e884213d674d78053b3a0c5b52373a5e2bc8b83c"
+    },
+    "epf-init": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/epf-init/SKILL.md",
+      "computedHash": "889771d25eda9284a8fbfe78e7234fb8e031f499b38f91ff2d2aca714c8d50a5"
+    },
+    "epf-validate": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/epf-validate/SKILL.md",
+      "computedHash": "809f0fbe664b3569b2f8b667986b6f396157a0e6cc6fade1647ebba6e180b305"
+    },
+    "erf-build": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/erf-build/SKILL.md",
+      "computedHash": "47d83e48548e8ee0e482199be3c545a25fe862d17b6f9a5757d1b2088b119e35"
+    },
+    "erf-dump": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/erf-dump/SKILL.md",
+      "computedHash": "eaac5e8a0b07e59174d549014b6213319147eb419854fc5372c93673335a8bd8"
+    },
+    "erf-init": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/erf-init/SKILL.md",
+      "computedHash": "28dfc8c1e8f79c762c66bd2de0b373f60dd03f857bc26741dc6fd2c23db59a0a"
+    },
+    "erf-validate": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/erf-validate/SKILL.md",
+      "computedHash": "cb50cedf0ef336d6116600d70cb42bc85c107d152c4363c086b912f469a0f90c"
+    },
+    "form-add": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/form-add/SKILL.md",
+      "computedHash": "27d08621c57171a8a97435eca89f1c5c8a5a24382f5414c00f760f44cbe574a9"
+    },
+    "form-compile": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/form-compile/SKILL.md",
+      "computedHash": "f7087ff690d90fb17fd1cfb2738e128ffb7add4bc2e04f47da9770b4b6e418ba"
+    },
+    "form-decompile": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/form-decompile/SKILL.md",
+      "computedHash": "036031e04603b0c3d3251adb70008a92be0ec5f9d902749dfd8b468fbae0fb63"
+    },
+    "form-edit": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/form-edit/SKILL.md",
+      "computedHash": "88b74fa8baff85a7918326f06c2d81bd9905ca0217fc4fc4eb0233a6ca75a580"
+    },
+    "form-info": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/form-info/SKILL.md",
+      "computedHash": "6800781275a180ab5c1d1e801075e184c606e7bba1f3f41549f204190d436d33"
+    },
+    "form-patterns": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/form-patterns/SKILL.md",
+      "computedHash": "621ce47632f77a92cb098054bb7a51fc196824a1776c1fdb9b71a43ac761fe4e"
+    },
+    "form-remove": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/form-remove/SKILL.md",
+      "computedHash": "71ed33a539df89d097fda546869f521df41b31d59a1a122a3d2560d37215b320"
+    },
+    "form-validate": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/form-validate/SKILL.md",
+      "computedHash": "152ef3a64db568e90d3582e3ad0175872f401887b5b119222e6d48d929e2366d"
+    },
+    "help-add": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/help-add/SKILL.md",
+      "computedHash": "151b8a28e47acb88769aa3af60601aa737170368ff856aea6c5ae9e47326ca68"
+    },
+    "img-grid": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/img-grid/SKILL.md",
+      "computedHash": "8570f074d35efafbe1f07a0b754103443840cff9865cd77c0727132e97bcf8eb"
+    },
+    "interface-edit": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/interface-edit/SKILL.md",
+      "computedHash": "4f883f8e58378243e7e702cce74a78d6d0f98cc9ee73f4cc2d3848dff2f7d31c"
+    },
+    "interface-validate": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/interface-validate/SKILL.md",
+      "computedHash": "54f4f1fa7ca8c75ef5e0154da3fbfee2eb3620ae8242db0c0cac409ba824f3de"
+    },
+    "meta-compile": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/meta-compile/SKILL.md",
+      "computedHash": "94775a54fef18c0fda9b9c5d3702ef81a70503e71b5ebe5858e4ea2806d18f3e"
+    },
+    "meta-decompile": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/meta-decompile/SKILL.md",
+      "computedHash": "e9a4bb4d8ed18802435cfc03ccc24d6a4971682fd61077ae34c91c9e59dc7541"
+    },
+    "meta-edit": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/meta-edit/SKILL.md",
+      "computedHash": "2219ee065d62f2fd6308cc3df927c906f7f3b34a83ce76c6c9225ab47804acfe"
+    },
+    "meta-info": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/meta-info/SKILL.md",
+      "computedHash": "718a78f6e54491edc6aa9e5951ed2bf04711a512344402c0c44202e96914c07e"
+    },
+    "meta-remove": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/meta-remove/SKILL.md",
+      "computedHash": "62253265183e8757136e6bfd13d939ddea610335c61d588cddb0f02ddc91aea9"
+    },
+    "meta-validate": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/meta-validate/SKILL.md",
+      "computedHash": "f1882931cfde165330f7cdd1011ffd288455c3524e7aa21a34e37e1676f406ee"
+    },
+    "mxl-compile": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/mxl-compile/SKILL.md",
+      "computedHash": "a4c30e2d0eaace979747a54b7b5523c01bf4f9503703a66a8a9fc981e44704f0"
+    },
+    "mxl-decompile": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/mxl-decompile/SKILL.md",
+      "computedHash": "62349f6bef22a4f1383765a4da0b82b6aab7c827044da9ad768d0388b129bd4c"
+    },
+    "mxl-info": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/mxl-info/SKILL.md",
+      "computedHash": "f0e8d2d2cc2ba0928ce641b4854c454314a2f73c2f7a07c052de7c638179b6c2"
+    },
+    "mxl-validate": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/mxl-validate/SKILL.md",
+      "computedHash": "b0758f54a3210c107faf2e1c35d454df22b292ba17de863addbd48c2bc91fa57"
+    },
+    "role-compile": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/role-compile/SKILL.md",
+      "computedHash": "206adb8b83c8b67b2532dd0de678e26f674fa97441b10ef41e4e12dedfbf5420"
+    },
+    "role-info": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/role-info/SKILL.md",
+      "computedHash": "8ef35471440f4bbd51e71d8919d553b562cd39fee964cde7a12302a873bbc91c"
+    },
+    "role-validate": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/role-validate/SKILL.md",
+      "computedHash": "96868d28e470d7a83f754fe643d2170849816d646afba576e830282fea6c34b1"
+    },
+    "skd-compile": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/skd-compile/SKILL.md",
+      "computedHash": "fbfe9b23020be06ad4cac4c8bc906d2df9277254412b311cb0a52d87cdd47645"
+    },
+    "skd-decompile": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/skd-decompile/SKILL.md",
+      "computedHash": "37fddc76ea979ab7649b5069312f4f97bba88140fac0f7829216cb48d8c314f1"
+    },
+    "skd-edit": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/skd-edit/SKILL.md",
+      "computedHash": "34d20c160349a7d6f32535d3ae4c8a88fee2573648e2595b560de7620bdc1d4f"
+    },
+    "skd-info": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/skd-info/SKILL.md",
+      "computedHash": "49d1a2511f141e82475289cdc506161c3712762cc15b868438d7c8bff5577e75"
+    },
+    "skd-validate": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/skd-validate/SKILL.md",
+      "computedHash": "034e11013042d6ec8334dca7c12b774c42cc5bddf1c80e90ebafe22af85cb5b5"
+    },
+    "subsystem-compile": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/subsystem-compile/SKILL.md",
+      "computedHash": "9c81996ab20cb412ba33a53e1d30a35bdbe76ee3a77fa72c2840b3a228f294cf"
+    },
+    "subsystem-edit": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/subsystem-edit/SKILL.md",
+      "computedHash": "aab0906f1e281341cb589474e5681f786592c1c339b10c2c4ec419834a73c47b"
+    },
+    "subsystem-info": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/subsystem-info/SKILL.md",
+      "computedHash": "05465a974847ba111ce8a71003dcec213c079c01cbada0e4570e9d6bc4525128"
+    },
+    "subsystem-validate": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/subsystem-validate/SKILL.md",
+      "computedHash": "8474de800394cdf3843f52292542087e1a064419f28b9a8f87a506b014642961"
+    },
+    "supabase-postgres-best-practices": {
+      "source": "supabase/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/supabase-postgres-best-practices/SKILL.md",
+      "computedHash": "e14e276241805c97dbcfe40dcbea1a3035269cc7293cac4b1832dda41a835e60"
+    },
+    "support-edit": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/support-edit/SKILL.md",
+      "computedHash": "affce23d6e9559a239b93e0ebab07a86b306467d392bd43e419c0cf968ec39b8"
+    },
+    "template-add": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/template-add/SKILL.md",
+      "computedHash": "d8322e50ecb07e5293d7067c0f5a6961b0514d0e600e7efb76346c5b68a5c1e1"
+    },
+    "template-remove": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/template-remove/SKILL.md",
+      "computedHash": "0c712db23f68860e2a2e960cc42700f39fc00c000ca6bb80b8fdc7b98f18cade"
+    },
+    "web-info": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/web-info/SKILL.md",
+      "computedHash": "6722d6ecd54ecfaf637dfd3c1cded9d093c5a7b5c94fb68de3501667832e67cd"
+    },
+    "web-publish": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/web-publish/SKILL.md",
+      "computedHash": "af181b20c8b8ee6e134b0e8a904208c2789a50671957529016508af408ff999f"
+    },
+    "web-stop": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/web-stop/SKILL.md",
+      "computedHash": "f810e273e8cf3a94322ba9f37dbc81f3026bc98c184047d282530c8bba7b1f79"
+    },
+    "web-test": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/web-test/SKILL.md",
+      "computedHash": "1b4a8fe9368f9186f94cc0e3a5b9307e1ff3efb7c920a3a055cad62f0551606e"
+    },
+    "web-unpublish": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/web-unpublish/SKILL.md",
+      "computedHash": "ecab4b53609bf18df0f9dfc7b46a6033585201aee8b7a172e002db0ae43290e9"
+    },
+    "xdto-compile": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/xdto-compile/SKILL.md",
+      "computedHash": "75fd51647c8018be533a7c448daf8d46a31482caea8720d330b0dae65af99c13"
+    },
+    "xdto-decompile": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/xdto-decompile/SKILL.md",
+      "computedHash": "4aa887e01f1cd4b608f4f50837274602fcf1f51567958acbfd1dc8d281166173"
+    },
+    "xdto-edit": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/xdto-edit/SKILL.md",
+      "computedHash": "88bf1d535a2c7a8ff2ab06350897137b87191a7fdf7e6c0243a4c773b58b68cb"
+    },
+    "xdto-info": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/xdto-info/SKILL.md",
+      "computedHash": "c0062d812a3a8d257e3ca949a5f1a815c2ce8056fc85e8a7c8c91c3bed883300"
+    },
+    "xdto-validate": {
+      "source": "Nikolay-Shirokov/cc-1c-skills#port-agents-py",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/xdto-validate/SKILL.md",
+      "computedHash": "06958f52effd38d81a650fc051973e69374ff325d0f7043494f5b06ce6fb26c3"
+    }
+  }
+}
