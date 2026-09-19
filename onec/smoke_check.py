@@ -47,7 +47,7 @@ def _rpc(base: str, auth: str, timeout: float, method: str, params: dict, call_i
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             raw = resp.read().decode("utf-8", "replace")
     except urllib.error.HTTPError as e:
-        raw = e.read().decode("utf-8", "replace")[:500]
+        raw = e.read().decode("utf-8", "replace")
         return {"_http_error": e.code, "_body": raw}
     try:
         return json.loads(raw)
