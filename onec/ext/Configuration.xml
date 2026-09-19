@@ -70,6 +70,7 @@
 			<DataProcessor>a1c_ИнструментКонтрагенты</DataProcessor>
 			<DataProcessor>a1c_ИнструментОтчеты</DataProcessor>
 			<DataProcessor>a1c_ИнструментЗапросы</DataProcessor>
+			<DataProcessor>a1c_Чат</DataProcessor>
 		</ChildObjects>
 	</Configuration>
 </MetaDataObject>

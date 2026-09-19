@@ -105,6 +105,17 @@ def test_chat_round_trip_and_history() -> None:
 
 def test_chat_unknown_session_404() -> None:
     client = _client([AssistantMessage(content="x")])
-    r = client.post("/chat", json={"message": "hi", "user_id": TEST_USER, "session_id": 999999})
-    assert r.status_code == 404
+    with client:
+        r = client.post("/chat", json={"message": "hi", "user_id": TEST_USER, "session_id": 999999})
+        assert r.status_code == 404
     _cleanup()
+
+
+def test_cors_open_for_chat_form() -> None:
+    client = _client([AssistantMessage(content="x")])
+    with client:
+        r = client.options(
+            "/chat",
+            headers={"Origin": "null", "Access-Control-Request-Method": "POST"},
+        )
+        assert r.headers.get("access-control-allow-origin") == "*"

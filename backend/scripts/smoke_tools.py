@@ -27,7 +27,7 @@ from app.agent import ToolRegistry, run_agent
 from app.config import settings
 from app.db.session import SessionFactory
 from app.llm import OpenAICompatibleLLM
-from app.onec import FakeOnecClient, build_onec_tools
+from app.onec import FakeOnecClient, McpOnecClient, build_onec_tools
 from app.rag import build_embeddings, make_kb_search
 from app.tools import MOCK_ONEC_TOOLS
 
@@ -38,6 +38,7 @@ HERE = Path(__file__).resolve().parent
 async def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--replay", default=None, help="JSON-фикстура ответов 1С вместо моков")
+    ap.add_argument("--live", action="store_true", help="живой прокси 1С (ONEC_MCP_URL) вместо моков")
     args = ap.parse_args()
 
     llm = OpenAICompatibleLLM(
@@ -56,6 +57,10 @@ async def main() -> int:
         fixture = json.loads(Path(args.replay).read_text(encoding="utf-8"))
         registry = ToolRegistry(build_onec_tools(FakeOnecClient(calls=fixture)) + [kb_tool])
         questions = json.loads((HERE / "replay_questions.json").read_text(encoding="utf-8"))
+    elif args.live:
+        client = McpOnecClient(settings.onec_mcp_url, token=settings.onec_token)
+        registry = ToolRegistry(build_onec_tools(client) + [kb_tool])
+        questions = json.loads((HERE / "questions.json").read_text(encoding="utf-8"))
     else:
         registry = ToolRegistry(MOCK_ONEC_TOOLS + [kb_tool])
         questions = json.loads((HERE / "questions.json").read_text(encoding="utf-8"))

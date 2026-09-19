@@ -6,6 +6,8 @@
   3 инструмента (`get_stock_balance`, `get_counterparty`, `run_skd_report`).
 - [`smoke_check.py`](smoke_check.py) — stdlib-смоук 1С-стороны (прямой JSON-RPC,
   без прокси и зависимостей).
+- [`CHAT.md`](CHAT.md) — чат-клиент (форма + HTML/SSE) и локальный контур
+  запуска (бэкенд + postgres + прокси на Windows-машине).
 
 ## Тестовая база (Windows-VM)
 

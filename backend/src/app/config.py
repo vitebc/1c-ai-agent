@@ -34,6 +34,10 @@ class Settings(BaseSettings):
 
     # MCP-прокси к 1С (профиль onec в docker-compose.yml).
     onec_mcp_url: str = "http://localhost:8000"
+    # Режим инструментов 1С: 'mock' (тестовые данные) или 'live' (прокси).
+    # Live требует доступного прокси; токен — только при MCP_AUTH_MODE=oauth2.
+    onec_mode: str = "mock"
+    onec_token: str | None = None
 
 
 settings = Settings()

@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+body { font-family: Segoe UI, Arial, sans-serif; font-size: 14px; margin: 0; padding: 0 0 60px 0; background: #fff; }
+#chat { padding: 10px; }
+.msg { margin: 6px 0; padding: 8px 12px; border-radius: 8px; max-width: 95%; word-wrap: break-word; }
+.user { background: #e3f2fd; margin-left: 8%; white-space: pre-wrap; }
+.assistant { background: #f5f5f5; }
+.assistant table { border-collapse: collapse; margin: 6px 0; font-size: 13px; }
+.assistant th, .assistant td { border: 1px solid #ccc; padding: 3px 8px; text-align: left; }
+.assistant pre { background: #eee; padding: 8px; overflow-x: auto; font-size: 12px; }
+.assistant code { background: #eee; padding: 0 3px; font-size: 12px; }
+.assistant pre code { background: none; padding: 0; }
+#status { color: #888; font-size: 12px; padding: 4px 12px; min-height: 18px; }
+#inputbar { position: fixed; bottom: 0; left: 0; right: 0; display: flex; padding: 8px; background: #fafafa; border-top: 1px solid #ddd; }
+#msg { flex: 1; font-size: 14px; padding: 8px; border: 1px solid #ccc; border-radius: 6px; }
+#send { font-size: 14px; margin-left: 8px; padding: 8px 16px; }
+.error { background: #ffebee; color: #b71c1c; }
+</style>
+</head>
+<body>
+<div id="chat"></div>
+<div id="status"></div>
+<div id="inputbar">
+<input id="msg" type="text" placeholder="Спросите про остатки, контрагентов, регламенты…" autocomplete="off">
+<button id="send">➤</button>
+</div>
+<script>
+var CFG = {"baseUrl": "%BASE_URL%", "userId": "%USER_NAME%"};
+var sessionId = null;
+var busy = false;
+
+function $(id) { return document.getElementById(id); }
+function esc(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+function setStatus(t) { $("status").textContent = t || ""; }
+function scrollDown() { window.scrollTo(0, document.body.scrollHeight); }
+
+function inline(s) {
+  s = s.replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");
+  s = s.replace(/`([^`]+)`/g, "<code>$1</code>");
+  return s;
+}
+function isSep(line) {
+  return line.indexOf("-") >= 0 && /^\|?[\s:\-|]+\|?$/.test(line);
+}
+function renderRow(line) {
+  var cells = line.replace(/^\||\|$/g, "").split("|");
+  var out = "<tr>";
+  for (var i = 0; i < cells.length; i++) out += "<td>" + inline(cells[i].replace(/^\s+|\s+$/g, "")) + "</td>";
+  return out + "</tr>";
+}
+function md(src) {
+  var codes = [];
+  src = src.replace(/```(\w*)\n([\s\S]*?)(```|$)/g, function (m, lang, code) {
+    codes.push("<pre><code>" + esc(code.replace(/\n$/, "")) + "</code></pre>");
+    return "@@CODE" + (codes.length - 1) + "@@";
+  });
+  var lines = esc(src).split("\n");
+  var html = "", para = [], i, line;
+  function flushPara() {
+    if (para.length) { html += "<p>" + para.join("<br>") + "</p>"; para = []; }
+  }
+  for (i = 0; i < lines.length; i++) {
+    line = lines[i];
+    var cm = /^@@CODE(\d+)@@$/.exec(line);
+    if (cm) { flushPara(); html += codes[parseInt(cm[1], 10)]; continue; }
+    if (/^#{1,4}\s/.test(line)) { flushPara(); html += "<h4>" + inline(line.replace(/^#{1,4}\s/, "")) + "</h4>"; continue; }
+    if (/^\s*$/.test(line)) { flushPara(); continue; }
+    if (/^\s*\|/.test(line) && i + 1 < lines.length && isSep(lines[i + 1])) {
+      flushPara();
+      html += "<table>" + renderRow(line).replace(/<td>/g, "<th>").replace(/<\/td>/g, "</th>");
+      i += 2;
+      while (i < lines.length && /^\s*\|/.test(lines[i]) && !isSep(lines[i])) { html += renderRow(lines[i]); i++; }
+      html += "</table>"; i--;
+      continue;
+    }
+    para.push(inline(line));
+  }
+  flushPara();
+  return html;
+}
+
+function addMsg(who, html) {
+  var d = document.createElement("div");
+  d.className = "msg " + who;
+  d.innerHTML = html;
+  $("chat").appendChild(d);
+  scrollDown();
+  return d;
+}
+
+function send() {
+  if (busy) return;
+  var input = $("msg");
+  var text = input.value.replace(/^\s+|\s+$/g, "");
+  if (!text) return;
+  input.value = "";
+  addMsg("user", esc(text));
+  busy = true;
+  $("send").disabled = true;
+  var bubble = addMsg("assistant", "…");
+  var full = "";
+  var xhr = new XMLHttpRequest();
+  var seen = 0, buf = "";
+  function render() { bubble.innerHTML = full ? md(full) : "…"; scrollDown(); }
+  function fail(msg) {
+    bubble.className = "msg assistant error";
+    bubble.textContent = msg;
+    setStatus(""); busy = false; $("send").disabled = false; scrollDown();
+  }
+  xhr.open("POST", CFG.baseUrl.replace(/\/$/, "") + "/chat", true);
+  xhr.setRequestHeader("Content-Type", "application/json");
+  xhr.onprogress = function () {
+    try {
+      buf += xhr.responseText.slice(seen); seen = xhr.responseText.length;
+      var parts = buf.split("\n\n"); buf = parts.pop();
+      for (var i = 0; i < parts.length; i++) {
+        var ev = null, data = null, rows = parts[i].split("\n"), j;
+        for (j = 0; j < rows.length; j++) {
+          if (rows[j].indexOf("event:") === 0) ev = rows[j].slice(6).replace(/^\s+/, "");
+          if (rows[j].indexOf("data:") === 0) data = rows[j].slice(5).replace(/^\s+/, "");
+        }
+        if (!data) continue;
+        var obj = JSON.parse(data);
+        if (ev === "tool") setStatus("Вызываю " + obj.tool + "…");
+        else if (ev === "answer") { full += obj.delta || ""; render(); }
+        else if (ev === "done") { if (obj.session_id) sessionId = obj.session_id; }
+      }
+    } catch (e) { /* ждём следующий чанк */ }
+  };
+  xhr.onload = function () {
+    if (xhr.status !== 200) { fail("Бэкенд вернул HTTP " + xhr.status + ". Проверьте адрес и что сервис запущен."); return; }
+    render(); setStatus(""); busy = false; $("send").disabled = false;
+  };
+  xhr.onerror = function () { fail("Нет связи с бэкендом " + CFG.baseUrl + ". Проверьте адрес и что сервис запущен."); };
+  try {
+    xhr.send(JSON.stringify({message: text, session_id: sessionId, user_id: CFG.userId}));
+  } catch (e) { fail("Не удалось отправить: " + e.message); }
+}
+
+$("send").onclick = send;
+$("msg").onkeydown = function (e) {
+  e = e || window.event;
+  if ((e.keyCode || e.which) === 13) send();
+};
+setStatus("Готов. Бэкенд: " + CFG.baseUrl);
+</script>
+</body>
+</html>

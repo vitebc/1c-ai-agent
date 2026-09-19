@@ -85,12 +85,15 @@ python onec\smoke_check.py --url http://HOST/ka2test --user AGENT_USER --meta
 
 Пришли ВЕСЬ вывод: по нему поправлю запросы в BSL под твою базу.
 
-## 7. Прокси (позже, когда будет сеть до бэкенда)
+## 7. Прокси и чат (локальный контур)
 
-Пока связки VPS↔VM нет — прокси НЕ поднимаем, бэкенд ходит в моки.
-Когда появится сеть: `git clone` апстрима на VM, `pip install -r`,
-`python -m src.py_server http`, `MCP_ONEC_URL` → твоя публикация,
-`MCP_AUTH_MODE=none` (один read-only пользователь) → позже `oauth2`.
+Сети VPS↔VM нет — всё крутится на Windows-машине. Полная инструкция:
+[`CHAT.md`](CHAT.md) (бэкенд + postgres + прокси локально, `ONEC_MODE=live`).
+
+Чат в базе: Все функции → Обработки → `a1c_Чат`. В поле «Бэкенд» —
+адрес локального бэкенда (`http://localhost:8000`).
+
+Смоук live-связки (каталог `backend`): `uv run python scripts/smoke_tools.py --live`.
 
 ## Troubleshooting
 
