@@ -18,7 +18,7 @@
 			<Content/>
 		</Properties>
 		<ChildObjects>
-			<Subsystem>a1c_КонтейнерыИнструментов</Subsystem>
+			<Subsystem>mcp_КонтейнерыИнструментов</Subsystem>
 		</ChildObjects>
 	</Subsystem>
 </MetaDataObject>
