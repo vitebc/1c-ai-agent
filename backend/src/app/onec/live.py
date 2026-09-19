@@ -12,7 +12,7 @@ from typing import Any
 
 from app.agent.tools import ToolContext, ToolDefinition
 from app.onec.client import OnecClient
-from app.onec.schemas import CounterpartyArgs, SkdReportArgs, StockArgs
+from app.onec.schemas import CounterpartyArgs, ExecuteSelectArgs, SkdReportArgs, StockArgs, ValidateQueryArgs
 
 
 def _dump(payload: object) -> str:
@@ -51,6 +51,16 @@ async def _report(client: OnecClient, args: SkdReportArgs, ctx: ToolContext) -> 
     return _dump({"report": args.report, "period": args.period, "rows": rows})
 
 
+async def _select(client: OnecClient, args: ExecuteSelectArgs, ctx: ToolContext) -> str:  # noqa: ARG001
+    # 1С возвращает структуру {rows, truncated} — отдаём как есть.
+    return _dump(await client.call_tool("execute_select", args.model_dump()))
+
+
+async def _validate(client: OnecClient, args: ValidateQueryArgs, ctx: ToolContext) -> str:  # noqa: ARG001
+    result = await client.call_tool("validate_query", args.model_dump())
+    return result if isinstance(result, str) else _dump(result)
+
+
 def build_onec_tools(client: OnecClient) -> list[ToolDefinition]:
     async def stock_handler(args: Any, ctx: ToolContext) -> str:
         return await _stock(client, args, ctx)
@@ -60,6 +70,12 @@ def build_onec_tools(client: OnecClient) -> list[ToolDefinition]:
 
     async def report_handler(args: Any, ctx: ToolContext) -> str:
         return await _report(client, args, ctx)
+
+    async def select_handler(args: Any, ctx: ToolContext) -> str:
+        return await _select(client, args, ctx)
+
+    async def validate_handler(args: Any, ctx: ToolContext) -> str:
+        return await _validate(client, args, ctx)
 
     return [
         ToolDefinition(
@@ -80,5 +96,19 @@ def build_onec_tools(client: OnecClient) -> list[ToolDefinition]:
             "или debtors (дебиторская задолженность). Период форматом ГГГГ-Q[1-4]/H[1-2]/Y.",
             args_model=SkdReportArgs,
             handler=report_handler,
+        ),
+        ToolDefinition(
+            name="execute_select",
+            description="Произвольный запрос на языке запросов 1С, ТОЛЬКО выборка "
+            "(должен начинаться с ВЫБРАТЬ/SELECT). Имена объектов сверяй через "
+            "list_metadata_objects/get_metadata_structure. Только чтение.",
+            args_model=ExecuteSelectArgs,
+            handler=select_handler,
+        ),
+        ToolDefinition(
+            name="validate_query",
+            description="Проверка синтаксиса запроса пробным выполнением (ПЕРВЫЕ 1). Возвращает вердикт строкой.",
+            args_model=ValidateQueryArgs,
+            handler=validate_handler,
         ),
     ]

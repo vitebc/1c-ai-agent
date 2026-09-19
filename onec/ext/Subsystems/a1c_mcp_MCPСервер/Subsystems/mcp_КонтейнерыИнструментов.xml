@@ -19,6 +19,7 @@
 				<xr:Item xsi:type="xr:MDObjectRef">DataProcessor.a1c_ИнструментОстатки</xr:Item>
 				<xr:Item xsi:type="xr:MDObjectRef">DataProcessor.a1c_ИнструментКонтрагенты</xr:Item>
 				<xr:Item xsi:type="xr:MDObjectRef">DataProcessor.a1c_ИнструментОтчеты</xr:Item>
+				<xr:Item xsi:type="xr:MDObjectRef">DataProcessor.a1c_ИнструментЗапросы</xr:Item>
 			</Content>
 		</Properties>
 		<ChildObjects/>

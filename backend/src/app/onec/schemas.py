@@ -32,3 +32,16 @@ class StockArgs(BaseModel):
 
     sku: str = Field(min_length=2)
     warehouse: str | None = None
+
+
+class ExecuteSelectArgs(BaseModel):
+    """Произвольный запрос: только ВЫБРАТЬ/SELECT, кап строк на стороне 1С."""
+
+    query: str = Field(min_length=1)
+    limit: int = Field(default=50, le=200)
+
+
+class ValidateQueryArgs(BaseModel):
+    """Проверка синтаксиса запроса пробным выполнением (ПЕРВЫЕ 1)."""
+
+    query: str = Field(min_length=1)

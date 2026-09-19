@@ -96,3 +96,19 @@ def test_non_list_result_rejected() -> None:
     tools = _tools(client)
     with pytest.raises(ValueError, match="не массив"):
         _call(tools, "run_skd_report", {"report": "debtors", "period": "2026-Q1"})
+
+
+def test_universal_tools_passthrough() -> None:
+    select_result = {"rows": [{"a": 1}], "truncated": False}
+    client = FakeOnecClient(
+        calls={
+            "execute_select": select_result,
+            "validate_query": "OK: синтаксис корректен.",
+        }
+    )
+    tools = _tools(client)
+    assert set(tools) >= {"execute_select", "validate_query"}
+    out = _call(tools, "execute_select", {"query": "ВЫБРАТЬ 1 КАК А"})
+    assert json.loads(out) == select_result
+    assert _call(tools, "validate_query", {"query": "ВЫБРАТЬ 1"}) == "OK: синтаксис корректен."
+    assert client.requested[0] == ("execute_select", {"query": "ВЫБРАТЬ 1 КАК А", "limit": 50})
