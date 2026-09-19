@@ -36,6 +36,22 @@ completed 31/31, choice 31/31 = 1.00, clean 31/31. Denial-тест прав
 (профиль `sales` спрашивает про документ профиля `accounting`) — утечки нет,
 модель честно отвечает «в базе знаний нет».
 
+## Replay на живых данных 1С (без сети до базы)
+
+```bash
+uv run python scripts/smoke_tools.py --replay tests/fixtures/ka2_pilot.json
+```
+
+Фикстура — реальные ответы тестовой КА2 (сняты `onec/smoke_check.py`),
+вопросы — `scripts/replay_questions.json`. Петля идёт через live-адаптер
+(`build_onec_tools` + `FakeOnecClient`), LLM настоящий. Регресс шейпинга
+и качества ответов после правок BSL.
+
+Прогон 2026-09-13 (deepseek-flash): completed 6/6, choice 6/6 = 1.00.
+Модель корректно отработала multi-match (5 стульев одной таблицей),
+пустую карточку («не найден») и сложный кейс «долг Лебедева»:
+5 поисков по карточке → пусто → отчёт debtors → долг найден.
+
 ## RAG-скелет (шаг 2)
 
 ```bash

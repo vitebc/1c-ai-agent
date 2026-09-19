@@ -1,0 +1,8 @@
+[
+  {"q": "Сколько стульев есть в магазине распродаж?", "expected": "get_stock_balance"},
+  {"q": "Какой остаток стула Премиум Санчо кремового?", "expected": "get_stock_balance"},
+  {"q": "Покажи дебиторскую задолженность.", "expected": "run_skd_report"},
+  {"q": "Какой долг у Лебедева А.П.?", "expected": "run_skd_report"},
+  {"q": "Найди контрагента Ромашка.", "expected": "get_counterparty"},
+  {"q": "Привет! Что ты умеешь?", "expected": "none"}
+]

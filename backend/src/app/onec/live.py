@@ -29,12 +29,18 @@ async def _stock(client: OnecClient, args: StockArgs, ctx: ToolContext) -> str: 
     rows = _as_list(await client.call_tool("get_stock_balance", args.model_dump()), "get_stock_balance")
     if not rows:
         return _dump({"found": False, "hint": "Номенклатура/склад не найдены, уточните название у пользователя."})
-    first = rows[0]
-    balances = {str(r.get("warehouse", "?")): r.get("qty") for r in rows if isinstance(r, dict)}
-    payload: dict[str, Any] = {"found": True, "sku": first.get("sku"), "balances": balances}
-    if len(rows) > 1:
-        payload["more"] = len(rows) - 1
-    return _dump(payload)
+    groups: dict[str, dict[str, Any]] = {}
+    for r in rows:
+        if not isinstance(r, dict):
+            continue
+        sku = str(r.get("sku", "?"))
+        groups.setdefault(sku, {})[str(r.get("warehouse", "?"))] = r.get("qty")
+    if not groups:
+        return _dump({"found": False, "hint": "Неожиданный формат ответа 1С."})
+    if len(groups) == 1:
+        sku = next(iter(groups))
+        return _dump({"found": True, "sku": sku, "balances": groups[sku]})
+    return _dump({"found": True, "matches": [{"sku": s, "balances": groups[s]} for s in groups]})
 
 
 async def _counterparty(client: OnecClient, args: CounterpartyArgs, ctx: ToolContext) -> str:  # noqa: ARG001

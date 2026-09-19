@@ -42,7 +42,7 @@ def test_stock_shapes_single_and_empty() -> None:
     assert json.loads(out2)["found"] is False
 
 
-def test_stock_multiple_matches_flagged() -> None:
+def test_stock_multiple_matches_grouped() -> None:
     rows = [
         {"sku": "Стул", "warehouse": "Основной", "qty": 1},
         {"sku": "Стул детский", "warehouse": "Основной", "qty": 2},
@@ -51,7 +51,13 @@ def test_stock_multiple_matches_flagged() -> None:
     tools = _tools(client)
     out = _call(tools, "get_stock_balance", {"sku": "стул"})
     data = json.loads(out)
-    assert data["found"] is True and data["more"] == 1
+    assert data == {
+        "found": True,
+        "matches": [
+            {"sku": "Стул", "balances": {"Основной": 1}},
+            {"sku": "Стул детский", "balances": {"Основной": 2}},
+        ],
+    }
 
 
 def test_counterparty_single_multi_empty() -> None:
@@ -112,3 +118,25 @@ def test_universal_tools_passthrough() -> None:
     assert json.loads(out) == select_result
     assert _call(tools, "validate_query", {"query": "ВЫБРАТЬ 1"}) == "OK: синтаксис корректен."
     assert client.requested[0] == ("execute_select", {"query": "ВЫБРАТЬ 1 КАК А", "limit": 50})
+
+
+def test_live_fixture_shapes() -> None:
+    """Шейпинг на живых ответах пилота КА2 (tests/fixtures/ka2_pilot.json)."""
+    from pathlib import Path
+
+    fixture_path = Path(__file__).resolve().parent / "fixtures" / "ka2_pilot.json"
+    fixture = json.loads(fixture_path.read_text(encoding="utf-8"))
+    tools = _tools(FakeOnecClient(calls=fixture))
+
+    stock = json.loads(_call(tools, "get_stock_balance", {"sku": "стул"}))
+    assert stock["found"] is True
+    assert len(stock["matches"]) == 5  # все 5 позиций, ничего не потеряно
+    assert stock["matches"][0]["balances"] == {"1.Магазин распродаж": 3}
+
+    debtors = json.loads(_call(tools, "run_skd_report", {"report": "debtors", "period": "2026-Q1"}))
+    assert debtors["period"] == "2026-Q1" and len(debtors["rows"]) == 5
+    lebedev = next(r for r in debtors["rows"] if "Лебедев" in r["name"])
+    assert lebedev["debt"] == 16938288.82  # float из 1С едет как есть
+
+    empty = json.loads(_call(tools, "get_counterparty", {"query": "Ромашка"}))
+    assert empty["found"] is False

@@ -1,16 +1,21 @@
 """Смоук стабильности function calling.
 
-Гоняет вопросы из questions.json через агентскую петлю с мок-инструментами 1С
-и считает: долю завершённых диалогов, долю попаданий в ожидаемый инструмент,
-долю чистых прогонов (без ERROR-ретраев).
+Гоняет вопросы через агентскую петлю и считает: долю завершённых диалогов,
+долю попаданий в ожидаемый инструмент, долю чистых прогонов (без ERROR-ретраев).
 
-Запуск из backend/:  uv run python scripts/smoke_tools.py
+Два режима (запуск из backend/):
+- моки:   uv run python scripts/smoke_tools.py  (questions.json)
+- replay: uv run python scripts/smoke_tools.py --replay tests/fixtures/ka2_pilot.json
+  (живые ответы 1С из фикстуры + replay_questions.json — регресс шейпинга
+  и качества ответов на реальных данных без сети до базы).
+
 Нужны LLM_BASE_URL / LLM_API_KEY / LLM_MODEL в .env (корень репозитория).
 Критерий: choice_rate >= 0.9, иначе exit 1.
 """
 
 from __future__ import annotations
 
+import argparse
 import asyncio
 import json
 import sys
@@ -22,6 +27,7 @@ from app.agent import ToolRegistry, run_agent
 from app.config import settings
 from app.db.session import SessionFactory
 from app.llm import OpenAICompatibleLLM
+from app.onec import FakeOnecClient, build_onec_tools
 from app.rag import build_embeddings, make_kb_search
 from app.tools import MOCK_ONEC_TOOLS
 
@@ -30,6 +36,10 @@ HERE = Path(__file__).resolve().parent
 
 
 async def main() -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--replay", default=None, help="JSON-фикстура ответов 1С вместо моков")
+    args = ap.parse_args()
+
     llm = OpenAICompatibleLLM(
         base_url=settings.llm_base_url,
         api_key=settings.llm_api_key,
@@ -41,8 +51,14 @@ async def main() -> int:
         enable_thinking=settings.llm_enable_thinking,
     )
     embeddings = build_embeddings(settings.embeddings_provider, settings.tei_base_url)
-    registry = ToolRegistry(MOCK_ONEC_TOOLS + [make_kb_search(SessionFactory, embeddings)])
-    questions = json.loads((HERE / "questions.json").read_text(encoding="utf-8"))
+    kb_tool = make_kb_search(SessionFactory, embeddings)
+    if args.replay:
+        fixture = json.loads(Path(args.replay).read_text(encoding="utf-8"))
+        registry = ToolRegistry(build_onec_tools(FakeOnecClient(calls=fixture)) + [kb_tool])
+        questions = json.loads((HERE / "replay_questions.json").read_text(encoding="utf-8"))
+    else:
+        registry = ToolRegistry(MOCK_ONEC_TOOLS + [kb_tool])
+        questions = json.loads((HERE / "questions.json").read_text(encoding="utf-8"))
 
     completed = hits = clean = 0
     for i, item in enumerate(questions, 1):
