@@ -65,6 +65,7 @@
 		<ChildObjects>
 			<Language>Русский</Language>
 			<Subsystem>a1c_mcp_MCPСервер</Subsystem>
+			<Role>a1c_АгентДоступ</Role>
 			<DataProcessor>a1c_ИнструментОстатки</DataProcessor>
 			<DataProcessor>a1c_ИнструментКонтрагенты</DataProcessor>
 			<DataProcessor>a1c_ИнструментОтчеты</DataProcessor>
