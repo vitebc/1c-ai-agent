@@ -55,6 +55,20 @@ def _rpc(base: str, auth: str, timeout: float, method: str, params: dict, call_i
         return {"_not_json": raw[:500]}
 
 
+def _is_tool_error(resp: dict) -> str | None:
+    """Ошибка инструмента лежит внутри result.content (HTTP 200), а не в error.
+    Возвращает текст ошибки или None."""
+    try:
+        blocks = resp.get("result", {}).get("content", [])
+        texts = [b.get("text", "") for b in blocks if isinstance(b, dict)]
+        for t in texts:
+            if "Ошибка выполнения инструмента" in t or "ОшибкаВоВремяВыполнения" in t:
+                return t
+    except (AttributeError, TypeError):
+        pass
+    return None
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="Смоук MCP HTTP-сервиса 1С")
     ap.add_argument("--url", required=True, help="База, напр. http://192.168.1.10/ka2test (регистр букв важен!)")
@@ -63,6 +77,8 @@ def main() -> int:
     ap.add_argument("--sku", default="стул")
     ap.add_argument("--counterparty", default="Ромашка")
     ap.add_argument("--timeout", type=float, default=60.0)
+    ap.add_argument("--meta", action="store_true",
+                    help="дополнительно выгрузить структуры ключевых объектов КА2")
     args = ap.parse_args()
 
     password = args.password or getpass.getpass("Пароль 1С: ")
@@ -103,11 +119,49 @@ def main() -> int:
         if "error" in resp or "_http_error" in resp or "_not_json" in resp:
             print(f"   FAIL: {json.dumps(resp, ensure_ascii=False)[:1000]}")
             failures += 1
+            continue
+        tool_error = _is_tool_error(resp)
+        if tool_error is not None:
+            # Ошибку печатаем ЦЕЛИКОМ — в хвосте лежит «по причине» с позицией.
+            print(f"   FAIL:\n{tool_error}")
+            failures += 1
         else:
             print(f"   OK: {json.dumps(resp.get('result'), ensure_ascii=False)[:1000]}")
 
+    if args.meta:
+        failures += _dump_metadata(base, auth, args.timeout)
+
     print(f"== Итог: {'OK' if failures == 0 else f'FAILURES={failures}'}")
     return 1 if failures else 0
+
+
+META_OBJECTS = [
+    ("AccumulationRegisters", "ТоварыНаСкладах"),
+    ("AccumulationRegisters", "РасчетыСКлиентами"),
+    ("Catalogs", "Контрагенты"),
+    ("Catalogs", "Партнеры"),
+    ("Catalogs", "Склады"),
+    ("Catalogs", "Номенклатура"),
+    ("Documents", "РеализацияТоваровУслуг"),
+]
+
+
+def _dump_metadata(base: str, auth: str, timeout: float) -> int:
+    """Выгрузка структур ключевых объектов через get_metadata_structure."""
+    print("== 20. Метаданные объектов (для сверки имён в BSL)")
+    failures = 0
+    for i, (meta_type, name) in enumerate(META_OBJECTS, start=20):
+        resp = _rpc(base, auth, timeout, "tools/call",
+                    {"name": "get_metadata_structure",
+                     "arguments": {"metaType": meta_type, "name": name}}, i)
+        tool_error = _is_tool_error(resp)
+        if "error" in resp or tool_error is not None:
+            print(f"   -- {meta_type}.{name}: НЕ НАЙДЕН ({str(resp.get('error', tool_error))[:200]})")
+            failures += 1
+            continue
+        print(f"   -- {meta_type}.{name}:")
+        print(str(resp.get("result"))[:3000])
+    return failures
 
 
 if __name__ == "__main__":
