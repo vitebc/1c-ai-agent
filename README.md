@@ -17,11 +17,18 @@
 ```bash
 cp .env.example .env          # заполнить LLM_BASE_URL/API_KEY/MODEL и MCP_ONEC_URL
 docker compose up -d postgres
+# бэкенд — Linux-контейнер (миграции применятся на старте):
+docker compose up -d backend  # или локально: cd backend && uv sync && uv run uvicorn app.main:app --reload --app-dir src
+docker compose logs -f backend
+```
+
+Проверка без Docker (линт/тесты):
+
+```bash
 cd backend && uv sync
 uv run pytest
 uv run ruff check src tests && uv run ruff format --check src tests
 uv run mypy src
-uv run uvicorn app.main:app --reload --app-dir src
 ```
 
 Линтеры также гоняются pre-commit: `pre-commit install && pre-commit run --all-files`.

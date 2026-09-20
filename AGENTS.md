@@ -54,10 +54,10 @@
 
 ## Окружение разработки
 
-- Разработка идёт на VPS без GPU: llama-server в dev-compose нет, веса модели не качаем и локально не поднимаем.
+- Разработка идёт на VPS без GPU (Linux): llama-server в dev-compose нет, веса модели не качаем и локально не поднимаем. Бэкенд — Linux-контейнер `backend` в compose (см. `backend/Dockerfile`, `docker compose up -d backend`).
 - LLM для разработки и смоуков — облачная OpenAI-совместимая модель через `.env` (`LLM_BASE_URL`/`LLM_API_KEY`/`LLM_MODEL`), строго на синтетических и нечувствительных данных. Прод-ограничение «всё локально» этим не отменяется.
 - GPU-сервер отдельно (карта 5090): конфиг llama.cpp-server под `qwen3.8-27b-1C` появится на шагах 1–2.
-- Тестовая 1С — Windows-VM пользователя (8.3.20+); связка бэкенда с ней — через профиль `onec` в compose (`MCP_ONEC_URL`). Детали — в `onec/README.md`.
+- Тестовая 1С — Windows-VM пользователя (8.3.20+); связка Linux-бэкенда с ней — по сети (VPN/Tailscale/проброс IIS). Если сети нет — fallback на Windows-контур (см. `onec/CHAT.md`). Детали — в `onec/README.md`.
 
 ## Команды
 
@@ -76,6 +76,7 @@ uv run uvicorn app.main:app --reload --app-dir src
 
 ```bash
 docker compose up -d postgres                 # всегда
+docker compose up -d backend                  # бэкенд (Linux, миграции на старте)
 docker compose --profile rag up -d            # + TEI (шаг 2, RAG)
 docker compose --profile onec up -d           # + MCP-прокси к тестовой 1С (шаг 3)
 ```
