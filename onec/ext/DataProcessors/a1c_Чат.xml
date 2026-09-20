@@ -30,6 +30,7 @@
 		<ChildObjects>
 			<Form>Форма</Form>
 			<Template>HTMLЧат</Template>
+			<Template>ШаблонДиалога</Template>
 		</ChildObjects>
 	</DataProcessor>
 </MetaDataObject>

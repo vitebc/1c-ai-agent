@@ -54,15 +54,18 @@ async def run_agent(
     *,
     llm: ChatLLM,
     registry: ToolRegistry,
-    user_message: str,
+    user_message: str | list[dict[str, Any]] = "",
     user_id: str = "dev",
     access_profile: str = "all",
     max_rounds: int = 6,
+    history: list[dict[str, Any]] | None = None,
 ) -> AgentResult:
     messages: list[dict[str, Any]] = [
         {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": user_message},
     ]
+    if history:
+        messages.extend(history)
+    messages.append({"role": "user", "content": user_message})
     ctx = ToolContext(user_id=user_id, access_profile=access_profile)
     called: list[str] = []
     errors = 0

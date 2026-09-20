@@ -35,6 +35,50 @@ class ChatLLM(Protocol):
         ...
 
 
+def build_user_content(
+    text: str,
+    attachments: list[dict[str, str]] | None = None,
+) -> str | list[dict[str, Any]]:
+    """Сформировать multimodal content для OpenAI-совместимого API.
+
+    - без вложений: str
+    - с вложениями: list content parts:
+        * {type: text, text: ...} для исходного сообщения
+        * {type: image_url, image_url: {url: data:...}} для image/*
+        * {type: text, text: "[Вложение: name (mime)]"} для остальных
+    Base64 передаём как data URI для image, для документов — текстовый маркер.
+    """
+    if not attachments:
+        return text
+    parts: list[dict[str, Any]] = [{"type": "text", "text": text}] if text else []
+    for att in attachments:
+        filename = att.get("filename") or att.get("name") or "file"
+        mime = att.get("mime_type") or att.get("mime") or "application/octet-stream"
+        b64 = att.get("content_base64") or att.get("data_base64") or ""
+        if mime.startswith("image/") and b64:
+            parts.append(
+                {
+                    "type": "image_url",
+                    "image_url": {"url": f"data:{mime};base64,{b64}"},
+                }
+            )
+            # Дублируем имя для контекста
+            parts.append({"type": "text", "text": f"[Изображение: {filename} ({mime})]"})
+        else:
+            # Не-image: передаём как текстовый маркер, не льём сырой base64 в промпт
+            snippet = b64[:120] + "..." if len(b64) > 120 else b64
+            if b64:
+                parts.append(
+                    {
+                        "type": "text",
+                        "text": f"[Вложение: {filename} ({mime}) base64:{snippet[:80]}...]",
+                    }
+                )
+            else:
+                parts.append({"type": "text", "text": f"[Вложение: {filename} ({mime})]"})
+    return parts if parts else text
+
+
 class OpenAICompatibleLLM:
     """AsyncOpenAI-клиент с сэмплингом из карточки qwen3.8-27b-1C."""
 
