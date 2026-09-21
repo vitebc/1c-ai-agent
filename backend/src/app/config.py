@@ -1,3 +1,4 @@
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -38,6 +39,26 @@ class Settings(BaseSettings):
     # Live требует доступного прокси; токен — только при MCP_AUTH_MODE=oauth2.
     onec_mode: str = "mock"
     onec_token: str | None = None
+
+    @field_validator("llm_api_key", mode="before")
+    @classmethod
+    def _coerce_api_key(cls, v: object) -> object:
+        if not isinstance(v, str):
+            return v
+        s = v.strip()
+        if s == "" or s == "change-me":
+            return "none"
+        return s
+
+    @field_validator("llm_base_url", mode="before")
+    @classmethod
+    def _coerce_base_url(cls, v: object) -> object:
+        if not isinstance(v, str):
+            return v
+        s = v.strip()
+        if s == "" or s == "https://api.example.com/v1":
+            return "http://localhost:8080/v1"
+        return s
 
 
 settings = Settings()

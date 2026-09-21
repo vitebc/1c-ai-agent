@@ -2,66 +2,63 @@
 
 ## Проект
 
-ИИ-чат-агент для 1С: пользователи задают вопросы на естественном языке, агент ищет ответы по корпоративной базе знаний (RAG) и формирует запросы/отчёты по данным 1С. Пользователи — сотрудники (несколько ролей) и внешние клиенты.
+ИИ-чат-агент для 1С: вопросы на естественном языке → RAG по базе знаний + запросы/отчёты по данным 1С. Пользователи — сотрудники (роли) и внешние клиенты.
 
-Статус: greenfield, код не написан. Путь выбран: свой бэкенд (см. «Стек»), LLM-модель определена. Команды сборки/тестов появятся вместе с первым кодом.
+Статус: бэкенд + RAG-скелет + 1С-слой + чат-клиент реализованы (шаги 0–4). Пилот — КА2 (живая база, 7 инструментов, `tools/list` + реальные JSON-ответы проверены, replay 6/6). Сеть Linux↔1С — по `MCP_ONEC_URL` (см. «Окружение»).
 
 ## Жёсткие ограничения
 
-- LLM только локально (Ollama / llama.cpp / vLLM), закрытый контур. Никаких облачных API — данные не покидают периметр компании.
-- Интерфейс к моделям — OpenAI-совместимый, чтобы провайдер оставался заменяемым.
-- Модель обязана поддерживать русский язык и function calling (нужен для агентской петли); эмбеддинги тоже локальные.
-- Права доступа 1С (RLS, профили групп доступа) применяются на этапе выборки данных агентом, а не только в UI.
+- LLM только локально (Ollama / llama.cpp / vLLM), закрытый контур. Никаких облачных API в проде — данные не покидают периметр.
+- Интерфейс к моделям — OpenAI-совместимый, провайдер заменяем.
+- Модель — русский + function calling (агентская петля); эмбеддинги тоже локальные.
+- Права 1С (RLS, профили групп доступа) — на этапе выборки данных агентом, не только в UI.
 
 ## Варианты реализации
 
-1. Доработка готовых расширений 1С (CFE):
-   - https://github.com/andromanpro/1c-ai-connector («ИИкона») — коннектор LLM, агентская петля с function calling, RAG (встроенный бэкенд или Qdrant), MCP-сервер; всё на чистом BSL.
-   - https://github.com/voskorbin/1c-ai-assistant — CFE с чат-UI + on-premise Go-шлюз (HTTP API + MCP + LLM).
-2. **Выбран:** свой бэкенд (FastAPI) + pgvector для RAG + инструменты доступа к 1С; чат-клиент — форма в 1С.
-3. Готовая платформа как «мозг»: Dify (сильнейший production-RAG и workflow, но тяжёлый стек ~6 контейнеров) или AnythingLLM (MIT, проще); 1С — тонкий чат-клиент по API.
+1. Доработка CFE: https://github.com/andromanpro/1c-ai-connector («ИИкона», function calling + RAG + MCP на BSL), https://github.com/voskorbin/1c-ai-assistant (CFE + Go-шлюз).
+2. **Выбран:** свой бэкенд (FastAPI) + pgvector + инструменты 1С; чат — форма в 1С.
+3. Платформа как «мозг»: Dify/AnythingLLM — 1С тонкий клиент.
 
-Критерии выбора: закрытый контур, мультисценарность (база знаний + данные/отчёты), сквозные права доступа, стоимость поддержки.
+Критерии: закрытый контур, мультисценарность (БЗ + данные/отчёты), сквозные права, поддержка.
 
 ## Стек (решение)
 
-- LLM: `sweetand/qwen3.8-27b-1C` (Apache-2.0, GGUF) — SFT-адаптация Qwen3.8-27B под 1С: BSL, XML-выгрузки, язык запросов 1С. Tool calling и thinking-режимы наследуются от базы; контекст до 262K. Квант по железу: Q4_0 ≈16 ГБ VRAM (карта 24 ГБ), Q8_0 ≈29 ГБ (32 ГБ+). Serving: llama.cpp-server / Ollama (модель GGUF-only). Самплинг из карточки: temperature=0.6, top_p=0.95, top_k=20, repetition_penalty=1.3. Для структурированных tool-вызовов thinking отключать. Вне домена 1С модель слабее базы — на PoC сравнить с базовой Qwen3.8-27B на RAG-чате по регламентам.
-- Эмбеддинги: `deepvk/USER-bge-m3` (кириллица) через TEI на CPU; реранкер `BAAI/bge-reranker-v2-m3` — фаза 2.
-- Бэкенд: Python 3.12 + FastAPI + uv, клиент `openai` против локального OpenAI-совместимого эндпоинта; агентская петля с function calling своя, тонкая (LangGraph — только если понадобится human-in-the-loop).
-- Хранилище: PostgreSQL + pgvector (чаты, документы, вектора в одной БД); фильтр по правам 1С (RLS-профили) — WHERE-клаузой на этапе retrieval. Переход на Qdrant — при необходимости hybrid-поиска/масштаба.
-- Инжест документов: Docling (PDF/DOCX с таблицами), для сканов — Tesseract rus.
-- 1С: MCP-слой — форк `vladimir-kharin/1c_mcp` (MIT): CFE-расширение закрывает протокол MCP (JSON-RPC через HTTP-сервис `/hs/mcp/rpc`), наши доменные read-only инструменты — отдельным расширением (подсистема с префиксом `mcp_MCPСервер`, паттерн `ДобавитьИнструменты`/`ВыполнитьИнструмент`); входящий Python-прокси даёт транспорт Streamable HTTP и per-user OAuth2 (пользователь один раз авторизуется учёткой 1С, бэкенд хранит refresh-токен) — запрос уходит в 1С под креденшиалами пользователя, RLS применяет платформа. Требует 1С 8.3.20+. Отчёты СКД — по готовым макетам; OData — только простые чтения. Чат-клиент — управляемая форма + HTML-документ: JS внутри него ходит к бэкенду по SSE/WebSocket, это обходит запрет BSL на стриминг.
-- Наблюдаемость: self-hosted Langfuse (трейсы не покидают контур).
-- Инфраструктура: Docker Compose — api, worker, postgres, llama-server, tei, langfuse.
-- Инструменты: ruff, mypy, pytest, pre-commit.
+- LLM: `sweetand/qwen3.8-27b-1C` (Apache-2.0, GGUF, SFT под BSL/XML/язык запросов, до 262K, tool calling + thinking от базы). Квант: Q4_0 ~16 ГБ VRAM (24 ГБ карта), Q8_0 ~29 ГБ (32 ГБ+). Serving: llama.cpp-server / Ollama (GGUF-only). Самплинг: temperature=0.6, top_p=0.95, top_k=20, repetition_penalty=1.3; thinking off для tool calling. Вне 1С слабее базы — на PoC сравнить с базовой Qwen3.8-27B.
+- Эмбеддинги: `deepvk/USER-bge-m3` (TEI CPU, `EMBEDDINGS_PROVIDER=fake` для dev) ; реранкер `BAAI/bge-reranker-v2-m3` — фаза 2.
+- Бэкенд: Python 3.12 + FastAPI + uv, `openai`-клиент к локальному OpenAI-endpoint; своя тонкая петля function calling (LangGraph — только если нужен human-in-the-loop). `POST /chat {message, session_id?, user_id?, attachments?[], context_size?}` → SSE `tool`/`answer`/`done`; `?background=true` → `GET /chat/result/{id}`.
+- Хранилище: PostgreSQL + pgvector (чаты/документы/вектора), фильтр прав — WHERE на retrieval. Qdrant — при hybrid/масштабе.
+- Инжест: сейчас `.md/.txt` (chunking + fake/TEI), для PDF/DOCX — Docling + Tesseract rus (отложено).
+- 1С: MCP-слой — форк `vladimir-kharin/1c_mcp` (MIT, пин `5abe316`, 1.6.1, `mcp>=1.8<2`, 8.3.20+): CFE-ядро (`/hs/mcp/health`, `POST /hs/mcp/rpc`) + наше `A1C_Инструменты` (`a1c_mcp_MCPСервер` по вхождению, `mcp_КонтейнерыИнструментов` по точному имени, `a1c_Инструмент*`): `get_stock_balance` (ТоварыНаСкладах `ВНаличииОстаток`), `get_counterparty` (Контрагенты → Партнер → РасчетыСКлиентами через `АналитикаУчетаПоПартнерам`), `run_skd_report` (РеализацияТоваровУслуг / РасчетыСКлиентами), универсальные `execute_select` (только ВЫБРАТЬ/SELECT + кап 200) + `validate_query` (ПЕРВЫЕ 1), роль `a1c_АгентДоступ` (только `Use` на HTTP-сервис). Живой пилот — список см. `onec/1c_mcp.md`. Важно: инструменты возвращают **только JSON-строку** через `ЗаписьJSON` (массив структур иначе станет «Структура»×N).
+- Чат-клиент: форк `КИИ_ТестИИ` + `КИИ_МаркдаунПарсерКлиентСервер` (MIT, andromanpro) → `a1c_МаркдаунПарсер` + `ШаблонДиалога` (пузырьки `user/assistant/error`, `.meta` с токенами/временем, таблицы/код, XSS `ЭкранироватьHTML`). Форма: `Pages` Диалог/Вложения, `Промпт` (multiLine), `ОтветHTML` (VerticalStretch), `Отправить` (Default), `ВыполнятьВФоне` (Switcher, `ФоновыеЗадания`), `РазмерКонтекста` (spin), `ТаблицаВложений` (drag AsFileRef, MIME). BSL `HTTPСоединение POST /chat` + парсинг SSE (`ИзвлечьОтветИзSSE`) + `ОбновитьОтображениеОтвета()`; настройки в `ХранилищеОбщихНастроек`. `HTMLЧат` оставлен как fallback.
+- Наблюдаемость: self-hosted Langfuse (отложено).
+- Инфра: Docker Compose — `backend` (Linux, `backend/Dockerfile`, `DATABASE_URL=postgres:5432` внутри сети, миграции на старте, healthcheck `/health`), `postgres` (pgvector:pg16), `tei` (профиль `rag`), `mcp-proxy` (профиль `onec`, `:8001→8000`). Порты: `BACKEND_PORT=8000`, `MCP_PROXY_PORT=8001` (разведены).
+- Инструменты: ruff, mypy --strict, pytest, pre-commit.
 
 ## Схема запросов агентом к данным 1С
 
-- Модель НЕ генерирует сырой язык запросов 1С (text-to-query) — только выбор из готовых инструментов (function calling) с типизированными параметрами. Причины: RLS обеспечивает платформа, а не самописные проверки; модель правдоподобно галлюцинирует имена объектов метаданных.
-- Поток: вопрос из формы чата (JS → SSE/WebSocket на бэкенд, идентификатор пользователя 1С в токене сессии) → вопрос + схемы инструментов в llama.cpp-server → tool call модели → валидация параметров на бэкенде (pydantic по JSON-схеме) → `tools/call` к MCP-прокси под токеном спрашивающего пользователя → прокси транслирует JSON-RPC в HTTP-сервис 1С под его креденшиалами → внутри 1С обработчик инструмента (наше расширение) повторно валидирует параметры + выполняет запрос/СКД (RLS и профили групп доступа применяются платформой нативно) → компактный JSON (агрегаты, лимит строк) → результат в контекст модели, при необходимости ещё раунды → ответ стримится в форму.
-- Классы инструментов: (а) отчёты СКД по готовым макетам — каталог макетов со схемами параметров хранится в Postgres и отдаётся модели как описания функций; (б) точечные чтения сущностей («карточка контрагента», «остатки»). OData — только простые справочные чтения.
-- Режим только read-only, в три слоя: пишем исключительно читающие инструменты (запись не реализуем даже скелетами); пользователям 1С, чьи креденшиалы проходят через прокси, назначаем read-only профили; каждый вызов документируем в аудите. Перед публикацией MCP-эндпоинта проверить состав встроенных инструментов базового расширения `1c_mcp` и лишнее отключить/не включать подсистемой.
-- Ошибку инструмента возвращать модели как tool result — она корректирует параметры и повторяет вызов.
-- Аудит каждого вызова: трейс в Langfuse + логирование обращений на стороне 1С.
+- Модель выбирает только из готовых инструментов (function calling, схемы из `onec/schemas.py` → `ToolRegistry`). Причины: RLS делает платформа, модель галлюцинирует имена метаданных.
+- Поток: форма (`Промпт` → BSL `ВызватьБэкендЧат`, `%USER_NAME%` = `ИмяПользователя()`) → `POST /chat` + схемы инструментов → tool call → валидация pydantic → `tools/call` к MCP-прокси (`ONEC_MCP_URL`, `ONEC_MODE=mock|live`) → JSON-RPC в 1С под креденшиалами пользователя → BSL повторно валидирует + запрос/остатки (RLS нативно) → компактный JSON (лимит 20/50/200) → в контекст модели, раунды → `a1c_МаркдаунПарсер.ПреобразоватьВHTML` → `ОтветHTML`. История из `messages` ограничивается `context_size*2`.
+- Классы: (а) отчёты по макетам (каталог в Postgres, фаза 1 — BSL-запросы v1), (б) `get_stock_balance`/`get_counterparty`, (в) универсальные `execute_select`/`validate_query` + `list_metadata_objects`/`get_metadata_structure` (ядро). `ONEC_MODE=mock` — тестовые данные; `live` — прокси.
+- Read-only 3 слоя: только читающие инструменты; пользователям 1С — read-only профили (нужен элемент справочника Пользователи + `Чтение` на 7 объектах, иначе `ТекущийПользователь` не ставится и падает `УстановкаПараметровСеанса`); аудит каждого вызова. Перед публикацией сверить `tools/list`.
+- Ошибку инструмента — как tool result (модель чинит параметры). Аудит: Langfuse + лог 1С.
 
 ## Известные грабли интеграции с 1С
 
-- Чистый BSL не умеет стриминг HTTP-ответов — платформа отдаёт ответ целиком. Обход: серверное фоновое задание + опрос статуса с клиента, либо WebSocket из внешнего шлюза.
-- Тяжёлые LLM-вызовы выполнять только в серверных фоновых заданиях, не блокировать форму клиента.
-- Точки доступа к данным 1С: стандартный интерфейс OData, HTTP-сервисы 1С, либо MCP-инструменты.
-- Отчёты — через СКД: агенту отдавать готовые параметры/выгрузки, не скармливать модели сырой язык запросов 1С без валидации.
-- В `1c_mcp`: транспорты `file`/`httppoll` у прокси экспериментальные — в проде только `http` (опубликованный HTTP-сервис); регистр имени базы в URL должен совпадать с публикацией, иначе редиректы превращают POST в GET; OAuth2-режим прокси не работает в stdio; password grant в прокси удалён — привязка пользователей к их учёткам 1С идёт только через Authorization Code + PKCE.
+- BSL не стримит HTTP — ответ целиком. Сейчас BSL парсит SSE целиком (`ИзвлечьОтветИзSSE`), при `ВыполнятьВФоне` — через `ФоновыеЗадания.Выполнить(a1c_ЧатФоновыйВызов)` + окно ожидания (как в ИИконе). JS `XMLHttpRequest` в `HTMLЧат` — fallback.
+- Тяжёлое — только в фоне, не блокировать форму.
+- Точки доступа: HTTP-сервисы / MCP (основное), OData — только простые чтения.
+- Отчёты — BSL-запросы v1 (контракт как у СКД, без XML/DSС рисков); переход на `skd-compile` — при нужде в раскладках.
+- `1c_mcp`: только `http` в проде (`file`/`httppoll` — тест), регистр базы в URL = публикации (иначе POST→GET), OAuth2 не в `stdio`, password grant удалён (только Authorization Code + PKCE).
 
 ## Окружение разработки
 
-- Разработка идёт на VPS без GPU (Linux): llama-server в dev-compose нет, веса модели не качаем и локально не поднимаем. Бэкенд — Linux-контейнер `backend` в compose (см. `backend/Dockerfile`, `docker compose up -d backend`).
-- LLM для разработки и смоуков — облачная OpenAI-совместимая модель через `.env` (`LLM_BASE_URL`/`LLM_API_KEY`/`LLM_MODEL`), строго на синтетических и нечувствительных данных. Прод-ограничение «всё локально» этим не отменяется.
-- GPU-сервер отдельно (карта 5090): конфиг llama.cpp-server под `qwen3.8-27b-1C` появится на шагах 1–2.
-- Тестовая 1С — Windows-VM пользователя (8.3.20+); связка Linux-бэкенда с ней — по сети (VPN/Tailscale/проброс IIS). Если сети нет — fallback на Windows-контур (см. `onec/CHAT.md`). Детали — в `onec/README.md`.
+- VPS без GPU (Linux): llama-server нет, веса не качаем. Бэкенд — `docker compose up -d backend` (см. `backend/Dockerfile`). LLM для смоуков — облачная OpenAI-модель через `.env` (`LLM_BASE_URL`/`LLM_API_KEY`/`LLM_MODEL`) только на синтетике.
+- GPU-сервер отдельно (5090, 72 ГБ): llama.cpp-server под `qwen3.8-27b-1C` — шаги 1–2.
+- Тестовая 1С — Windows-VM (8.3.20+, КА2), требуется элемент Пользователи + чтение 7 объектов + роль `a1c_АгентДоступ` в конфигураторе (шаг 4 `onec/DEPLOY.md`). Связка Linux-бэкенда — по сети (VPN/Tailscale/проброс IIS, `MCP_ONEC_URL` / `ONEC_MCP_URL_COMPOSE=http://mcp-proxy:8000`). Без сети — fallback на Windows-контур (`onec/CHAT.md`). Детали — `onec/README.md`.
 
 ## Команды
 
-Backend (выполнять из `backend/`):
+Backend (из `backend/`):
 
 ```bash
 uv sync
@@ -70,27 +67,30 @@ uv run ruff check src tests scripts
 uv run ruff format --check src tests scripts
 uv run mypy src tests scripts/smoke_tools.py
 uv run uvicorn app.main:app --reload --app-dir src
+uv run python scripts/smoke_tools.py                    # 31 вопрос, ≥0.9
+uv run python scripts/smoke_tools.py --replay tests/fixtures/ka2_pilot.json  # 6/6 live-фикстура
+uv run python scripts/smoke_tools.py --live             # прокси (ONEC_MCP_URL)
 ```
 
-Инфра (из корня репозитория):
+Инфра (корень):
 
 ```bash
 docker compose up -d postgres                 # всегда
-docker compose up -d backend                  # бэкенд (Linux, миграции на старте)
-docker compose --profile rag up -d            # + TEI (шаг 2, RAG)
-docker compose --profile onec up -d           # + MCP-прокси к тестовой 1С (шаг 3)
+docker compose up -d backend                  # + бэкенд (миграции сами, :8000)
+docker compose --profile rag up -d            # + TEI
+docker compose --profile onec up -d           # + MCP-прокси (профиль onec)
+docker compose logs -f backend
 ```
 
-Линтеры также гоняются pre-commit: `pre-commit install && pre-commit run --all-files`.
+pre-commit: `pre-commit install && pre-commit run --all-files`. 1С: `onec/smoke_check.py --url http://HOST/base --user agent [--meta]`.
 
 ## Git
 
-Remote — `origin` (https://github.com/vitebc/1c-ai-agent.git), ветка `main`.
-По завершении каждого шага: коммит + `git push origin main`. Дерево держать чистым.
+Remote `origin` https://github.com/vitebc/1c-ai-agent.git, ветка `main`. По шагу: коммит + `git push origin main`, дерево чистое.
 
 ## Навыки 1С-разработки (cc-1c-skills)
 
-- В `.agents/skills/` лежат 79 скилов из https://github.com/Nikolay-Shirokov/cc-1c-skills (копия, не сабмодуль). Источник зафиксирован в `skills-lock.json`.
-- Ветка-источник — `port-agents-py` (Python-рантайм): на этом Linux-боксе нет PowerShell, PS-версия с main-ветки здесь не запустится. Зависимости рантайма (`lxml`, `Pillow`, `psutil`) уже стоят в системном python3.
-- Для этого проекта важнее всего: `cfe-*` (наше read-only расширение), `skd-*` (макеты отчётов), `meta-*`, `role-*` (read-only профили). Группы `db-*`/`web-*` требуют установленной платформы 1С — её здесь нет, работают только XML-скрипты без платформы.
-- Обновление: склонировать ветку `port-agents-py`, скопировать `.agents/skills/*` поверх, пересчитать `computedHash` (sha256 от SKILL.md) в `skills-lock.json`.
+- В `.agents/skills/` 79 скилов из https://github.com/Nikolay-Shirokov/cc-1c-skills (копия, `skills-lock.json`, ветка `port-agents-py` — Python-рантайм, `lxml`+`Pillow`+`psutil` уже в системе; PS с `main` здесь не запустится).
+- Для проекта — `cfe-*` (расширение), `skd-*` (отчёты), `meta-*`, `role-*` (read-only), `form-*` (форма чата), `a1c_МаркдаунПарсер` — форк `КИИ_МаркдаунПарсерКлиентСервер` (MIT). `db-*`/`web-*` — только XML без платформы.
+- Обновление: clone `port-agents-py` → копировать `.agents/skills/*` → `computedHash` (sha256 SKILL.md) в `skills-lock.json`.
+

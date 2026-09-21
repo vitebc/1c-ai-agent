@@ -215,15 +215,25 @@ async def chat(
         asyncio.create_task(_run_bg())
         return JSONResponse({"job_id": job_id, "session_id": session_id, "status": "running"})
 
-    result = await run_agent(
-        llm=llm,
-        registry=registry,
-        user_message=user_content,
-        user_id=req.user_id,
-        access_profile=profile,
-        max_rounds=settings.agent_max_rounds,
-        history=history if history else None,
-    )
+    try:
+        result = await run_agent(
+            llm=llm,
+            registry=registry,
+            user_message=user_content,
+            user_id=req.user_id,
+            access_profile=profile,
+            max_rounds=settings.agent_max_rounds,
+            history=history if history else None,
+        )
+    except Exception as e:  # noqa: BLE001 — показываем ошибку в чате, а не 500
+        # 1С ждёт SSE, поэтому отдаём ошибку как обычный answer, чтобы форма показала текст а не "HTTP 500"
+        err_text = (
+            f"Ошибка обращения к LLM ({type(e).__name__}: {e}). "
+            f"Проверь .env: LLM_BASE_URL={settings.llm_base_url}, LLM_MODEL={settings.llm_model} "
+            f"и LLM_API_KEY задан (сейчас {'пуст' if settings.llm_api_key in ('none', '') else 'задан'}). "
+            f"Для локальной модели укажи http://llama:8080/v1 и ключ none."
+        )
+        result = AgentResult(answer=err_text, rounds=0, tool_calls=[], tool_errors=1)
 
     async with SessionFactory() as session:
         session.add(Message(session_id=session_id, role="assistant", content=result.answer))

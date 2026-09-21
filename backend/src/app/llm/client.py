@@ -94,7 +94,14 @@ class OpenAICompatibleLLM:
         repetition_penalty: float = 1.3,
         enable_thinking: bool = False,
     ) -> None:
-        self._client = AsyncOpenAI(base_url=base_url, api_key=api_key)
+        # Пустой ключ из .env ронял AsyncOpenAI до запроса — подменяем на dummy
+        norm_key = (api_key or "").strip()
+        if not norm_key or norm_key == "change-me":
+            norm_key = "none"
+        norm_url = (base_url or "").strip() or "http://localhost:8080/v1"
+        if norm_url == "https://api.example.com/v1":
+            norm_url = "http://localhost:8080/v1"
+        self._client = AsyncOpenAI(base_url=norm_url, api_key=norm_key)
         self._model = model
         self._temperature = temperature
         self._top_p = top_p
