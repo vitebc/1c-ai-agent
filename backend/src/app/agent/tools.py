@@ -35,15 +35,19 @@ class ToolDefinition:
     description: str
     args_model: type[BaseModel]
     handler: ToolHandler
+    # Для динамических MCP-тулзов (см. app.onec.live:make_generic_tool) — прямой
+    # JSON Schema из прокси. Если задан, уходит модели вместо model_json_schema().
+    parameters_schema: dict[str, Any] | None = None
 
     @property
     def openai_schema(self) -> dict[str, Any]:
+        params = self.parameters_schema if self.parameters_schema is not None else self.args_model.model_json_schema()
         return {
             "type": "function",
             "function": {
                 "name": self.name,
                 "description": self.description,
-                "parameters": self.args_model.model_json_schema(),
+                "parameters": params,
             },
         }
 

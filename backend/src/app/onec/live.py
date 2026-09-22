@@ -10,6 +10,8 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from pydantic import BaseModel, ConfigDict
+
 from app.agent.tools import ToolContext, ToolDefinition
 from app.onec.client import OnecClient
 from app.onec.schemas import (
@@ -80,6 +82,31 @@ async def _meta(client: OnecClient, tool_name: str, args: MetadataListArgs | Met
     payload = {k: v for k, v in args.model_dump().items() if v is not None}
     result = await client.call_tool(tool_name, payload)
     return result if isinstance(result, str) else _dump(result)
+
+
+class _GenericArgs(BaseModel):
+    """Приёмник любых аргументов динамического MCP-тулза (схему даёт прокси)."""
+
+    model_config = ConfigDict(extra="allow")
+
+
+def _make_generic_tool(
+    client: OnecClient, name: str, description: str, input_schema: dict[str, Any] | None
+) -> ToolDefinition:
+    schema = input_schema if isinstance(input_schema, dict) and input_schema else {"type": "object", "properties": {}}
+
+    async def handler(args: Any, ctx: ToolContext) -> str:  # noqa: ARG001
+        payload = args.model_dump() if hasattr(args, "model_dump") else {}
+        result = await client.call_tool(name, payload)
+        return result if isinstance(result, str) else _dump(result)
+
+    return ToolDefinition(
+        name=name,
+        description=description or f"MCP-тул {name} из 1С (динамический).",
+        args_model=_GenericArgs,
+        handler=handler,
+        parameters_schema=schema,
+    )
 
 
 def build_onec_tools(client: OnecClient) -> list[ToolDefinition]:

@@ -24,6 +24,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from app.agent import SYSTEM_PROMPT, AgentResult, ToolRegistry, run_agent
+from app.agent.tools import ToolDefinition
 from app.agents import Agent, AgentRegistry
 from app.config import settings
 from app.db.models import ChatSession, Message, User
@@ -101,7 +102,24 @@ async def get_registry() -> ToolRegistry:
     extra = [make_kb_search(SessionFactory, embeddings)] + ([pattern_tool] if pattern_tool else [])
     if settings.onec_mode == "live":
         client = McpOnecClient(settings.onec_mcp_url, token=settings.onec_token)
-        return ToolRegistry(build_onec_tools(client) + extra)
+        known = build_onec_tools(client)
+        known_names = {t.name for t in known} | {t.name for t in extra}
+        proxy_tools: list[dict[str, Any]] = []
+        try:
+            proxy_tools = await client.list_tools()
+        except Exception as e:  # noqa: BLE001 — прокси недоступен: отдаём статический набор
+            log.warning("не удалось опросить прокси 1С для списка инструментов: %s", e)
+        generics: list[ToolDefinition] = []
+        for pt in proxy_tools:
+            name = pt.get("name")
+            if not isinstance(name, str) or not name or name in known_names:
+                continue
+            generics.append(
+                __import__("app.onec.live", fromlist=["_make_generic_tool"])._make_generic_tool(
+                    client, name, pt.get("description") or "", pt.get("inputSchema")
+                )
+            )
+        return ToolRegistry(known + generics + extra)
     if settings.onec_mode != "mock":
         raise ValueError(f"ONEC_MODE: жди 'mock' или 'live', получено {settings.onec_mode!r}")
     return ToolRegistry(MOCK_ONEC_TOOLS + extra)
@@ -115,6 +133,29 @@ async def get_skill_registry() -> SkillRegistry:
 async def get_agent_registry() -> AgentRegistry:
     # Перечитываем файлы на каждый запрос: новый AGENT.md подхватывается без рестарта.
     return AgentRegistry.load(settings.agents_dir)
+
+
+@router.get("/tools")
+async def list_tools(registry: ToolRegistry = Depends(get_registry)) -> JSONResponse:  # noqa: B008
+    """Полный реестр доступных инструментов (динамически: mock/live + локальные).
+
+    Источник правды для `AGENT.md: tools:` — бери имена отсюда.
+    В live мода прокси опрашивается; динамические тулзы из 1С (a1c_Инструмент*)
+    появляются без правки кода бэкенда.
+    """
+    return JSONResponse(
+        {
+            "mode": settings.onec_mode,
+            "tools": [
+                {
+                    "name": s["function"]["name"],
+                    "description": s["function"]["description"],
+                    "parameters": s["function"]["parameters"],
+                }
+                for s in registry.schemas()
+            ],
+        }
+    )
 
 
 @router.get("/agents")
