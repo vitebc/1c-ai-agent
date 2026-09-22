@@ -13,6 +13,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import time
 import uuid
 from collections.abc import AsyncIterator
 from typing import Any
@@ -183,6 +184,11 @@ async def chat_result(job_id: str) -> JSONResponse:
             "session_id": job["session_id"],
             "agent": job.get("agent_name"),
             "skill": job.get("skill_name"),
+            "model": job.get("model_name"),
+            "elapsed_s": job.get("elapsed_s"),
+            "prompt_tokens": result.prompt_tokens,
+            "completion_tokens": result.completion_tokens,
+            "total_tokens": result.prompt_tokens + result.completion_tokens,
             "answer": result.answer,
             "rounds": result.rounds,
             "tool_calls": result.tool_calls,
@@ -333,6 +339,7 @@ async def chat(
     skill_name = skill.name if skill is not None else ""
     base_system = agent_spec.prompt.strip() or SYSTEM_PROMPT
     agent_name = agent_spec.name
+    model_name = agent_spec.model or settings.llm_model
     if background:
         job_id = uuid.uuid4().hex
         _background_jobs[job_id] = {
@@ -340,10 +347,13 @@ async def chat(
             "session_id": session_id,
             "skill_name": skill_name or None,
             "agent_name": agent_name,
+            "model_name": model_name,
+            "elapsed_s": None,
             "result": None,
         }
 
         async def _run_bg() -> None:
+            started = time.monotonic()
             try:
                 result = await run_agent(
                     llm=llm,
@@ -362,13 +372,16 @@ async def chat(
                 async with SessionFactory() as s:
                     s.add(Message(session_id=session_id, role="assistant", content=result.answer))
                     await s.commit()
-                _background_jobs[job_id].update({"status": "done", "result": result})
+                _background_jobs[job_id].update(
+                    {"status": "done", "elapsed_s": round(time.monotonic() - started, 1), "result": result}
+                )
             except Exception as e:  # noqa: BLE001
                 _background_jobs[job_id].update({"status": "error", "error": str(e)})
 
         asyncio.create_task(_run_bg())
         return JSONResponse({"job_id": job_id, "session_id": session_id, "status": "running", "agent": agent_name})
 
+    started = time.monotonic()
     try:
         result = await run_agent(
             llm=llm,
@@ -398,11 +411,20 @@ async def chat(
         session.add(Message(session_id=session_id, role="assistant", content=result.answer))
         await session.commit()
 
-    return StreamingResponse(_events(session_id, result, skill_name, agent_name), media_type="text/event-stream")
+    elapsed_s = round(time.monotonic() - started, 1)
+    return StreamingResponse(
+        _events(session_id, result, skill_name, agent_name, model_name, elapsed_s),
+        media_type="text/event-stream",
+    )
 
 
 async def _events(
-    session_id: int, result: AgentResult, skill_name: str = "", agent_name: str = ""
+    session_id: int,
+    result: AgentResult,
+    skill_name: str = "",
+    agent_name: str = "",
+    model_name: str = "",
+    elapsed_s: float = 0.0,
 ) -> AsyncIterator[str]:
     for tool_name in result.tool_calls:
         yield f"event: tool\ndata: {json.dumps({'tool': tool_name}, ensure_ascii=False)}\n\n"
@@ -413,6 +435,11 @@ async def _events(
         "session_id": session_id,
         "agent": agent_name or None,
         "skill": skill_name or None,
+        "model": model_name or None,
+        "elapsed_s": elapsed_s,
+        "prompt_tokens": result.prompt_tokens,
+        "completion_tokens": result.completion_tokens,
+        "total_tokens": result.prompt_tokens + result.completion_tokens,
         "rounds": result.rounds,
         "tool_errors": result.tool_errors,
     }

@@ -56,6 +56,9 @@ class AgentResult:
     # Сколько раз модели вернули ERROR-фидбэк (невалидные аргументы, неизвестный
     # инструмент, падение обработчика). 0 = чисто с первой попытки.
     tool_errors: int = 0
+    # Сумма usage по всем раундам (шаги без usage от провайдера дают нули).
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
 
 
 def _preview(content: str | list[dict[str, Any]] | None, limit: int = 500) -> str:
@@ -114,6 +117,8 @@ async def run_agent(
     ctx = ToolContext(user_id=user_id, access_profile=access_profile, base_name=base_name, agent_name=agent_name)
     called: list[str] = []
     errors = 0
+    prompt_tokens = 0
+    completion_tokens = 0
     started = time.monotonic()
     base = base_name or "-"
     skill = skill_name or "-"
@@ -122,6 +127,9 @@ async def run_agent(
 
     for round_no in range(1, max_rounds + 1):
         resp = await llm.complete(messages, registry.schemas())
+        if resp.usage is not None:
+            prompt_tokens += resp.usage.prompt_tokens
+            completion_tokens += resp.usage.completion_tokens
         messages.append(_assistant_message(resp))
         if not resp.tool_calls:
             elapsed = time.monotonic() - started
@@ -137,7 +145,14 @@ async def run_agent(
                 elapsed,
                 _preview(resp.content),
             )
-            return AgentResult(answer=resp.content or "", rounds=len(called) + 1, tool_calls=called, tool_errors=errors)
+            return AgentResult(
+                answer=resp.content or "",
+                rounds=len(called) + 1,
+                tool_calls=called,
+                tool_errors=errors,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+            )
         for call in resp.tool_calls:
             called.append(call.name)
             feedback = await _execute_call(registry, ctx, call.name, call.arguments)
@@ -167,6 +182,9 @@ async def run_agent(
         answer="Не уложился в лимит раундов диалога с инструментами. Попробуйте уточнить вопрос.",
         rounds=max_rounds,
         tool_calls=called,
+        tool_errors=errors,
+        prompt_tokens=prompt_tokens,
+        completion_tokens=completion_tokens,
     )
 
 

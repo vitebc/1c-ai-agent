@@ -20,9 +20,22 @@ class ToolCall:
 
 
 @dataclass
+class Usage:
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+
+    @property
+    def total(self) -> int:
+        return self.prompt_tokens + self.completion_tokens
+
+
+@dataclass
 class AssistantMessage:
     content: str | None
     tool_calls: list[ToolCall] = field(default_factory=list)
+    # Токены шага из usage ответа OpenAI-совместимого API. None — провайдер
+    # не вернул usage (или фейк в тестах); петля тогда считает нули.
+    usage: Usage | None = None
 
 
 class ChatLLM(Protocol):
@@ -134,4 +147,10 @@ class OpenAICompatibleLLM:
             ToolCall(id=c.id, name=c.function.name, arguments=c.function.arguments or "{}")
             for c in (msg.tool_calls or [])
         ]
-        return AssistantMessage(content=msg.content, tool_calls=calls)
+        usage = None
+        if resp.usage is not None:
+            usage = Usage(
+                prompt_tokens=resp.usage.prompt_tokens or 0,
+                completion_tokens=resp.usage.completion_tokens or 0,
+            )
+        return AssistantMessage(content=msg.content, tool_calls=calls, usage=usage)

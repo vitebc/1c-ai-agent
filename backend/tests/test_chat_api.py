@@ -16,7 +16,7 @@ from app.agent import ToolRegistry
 from app.api.chat import get_llm, get_registry
 from app.db.models import Message, User
 from app.db.session import SessionFactory
-from app.llm import AssistantMessage, ToolCall
+from app.llm import AssistantMessage, ToolCall, Usage
 from app.main import app
 from app.tools import MOCK_ONEC_TOOLS
 from tests.fake_llm import FakeLLM
@@ -99,6 +99,28 @@ def test_chat_round_trip_and_history() -> None:
 
         # 2 вопроса + 2 ответа
         assert asyncio.run(count()) == 4
+    finally:
+        _cleanup()
+
+
+def test_chat_done_carries_model_time_tokens() -> None:
+    """done отдаёт model/elapsed_s/токены из usage — строка метаинформации в 1С не нулевая."""
+    from app.config import settings
+
+    script = [
+        AssistantMessage(content="готово", usage=Usage(prompt_tokens=100, completion_tokens=25)),
+    ]
+    client = _client(script)
+    try:
+        with client:
+            r = client.post("/chat", json={"message": "привет", "user_id": TEST_USER})
+            assert r.status_code == 200, r.text
+            done = _parse_sse(r.text)["done"][0]
+            assert done["model"] == settings.llm_model
+            assert done["prompt_tokens"] == 100
+            assert done["completion_tokens"] == 25
+            assert done["total_tokens"] == 125
+            assert isinstance(done["elapsed_s"], (int, float)) and done["elapsed_s"] >= 0
     finally:
         _cleanup()
 

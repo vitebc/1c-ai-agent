@@ -91,7 +91,8 @@
 `Content-Type: text/event-stream`, события:
 - `event: tool` → `{"tool": "<имя>"}` — каждый вызов инструмента;
 - `event: answer` → `{"delta": "<кусок ~500 символов>"}` — текст ответа кусками;
-- `event: done` → `{"session_id": 12, "agent": "assistant", "skill": "zakazy-prokudina", "rounds": 3, "tool_errors": 0}`.
+- `event: done` → `{"session_id": 12, "agent": "assistant", "skill": "zakazy-prokudina", "model": "qwen3.8-27b-1C", "elapsed_s": 4.2, "prompt_tokens": 1200, "completion_tokens": 150, "total_tokens": 1350, "rounds": 3, "tool_errors": 0}`.
+  Токены — сумма `usage` OpenAI-совместимого API по всем раундам (провайдер без usage даёт нули); `elapsed_s` — серверное время выполнения.
 
 Падение LLM не даёт HTTP 500: ошибка приходит обычным `answer`-текстом
 с подсказкой про `.env` (`LLM_BASE_URL`/`LLM_MODEL`/`LLM_API_KEY`).
@@ -105,6 +106,6 @@
 Опрос фоновой задачи.
 
 - `running`: `{"job_id", "status": "running", "session_id"}`;
-- `done`: `{"job_id", "status": "done", "session_id", "agent", "skill", "answer", "rounds", "tool_calls", "tool_errors"}`;
+- `done`: `{"job_id", "status": "done", "session_id", "agent", "skill", "model", "elapsed_s", "prompt_tokens", "completion_tokens", "total_tokens", "answer", "rounds", "tool_calls", "tool_errors"}`;
 - `error`: `{"job_id", "status": "error", "error", "session_id"}`;
 - неизвестный `job_id` → `404`.
