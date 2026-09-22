@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 from typing import Any, Protocol
+from urllib.parse import urlsplit
 
 from mcp import ClientSession
 from mcp.client.streamable_http import streamablehttp_client
@@ -30,7 +31,12 @@ class McpOnecClient:
     """Клиент MCP Streamable HTTP. Сессия на каждый вызов (stateless)."""
 
     def __init__(self, mcp_url: str, token: str | None = None, timeout: float = 120.0) -> None:
-        self._url = mcp_url.rstrip("/")
+        # Прокси 1c_mcp отдаёт Streamable HTTP строго на /mcp/ (в корень — 405).
+        # Если путь не указан, подставляем его сами, чтобы голый хост из .env работал.
+        url = mcp_url.rstrip("/")
+        if urlsplit(url).path in ("", "/"):
+            url += "/mcp/"
+        self._url = url
         self._token = token
         self._timeout = timeout
 
