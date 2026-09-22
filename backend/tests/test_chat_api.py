@@ -103,6 +103,41 @@ def test_chat_round_trip_and_history() -> None:
         _cleanup()
 
 
+def test_chat_base_name_splits_session() -> None:
+    """Сессия чужой базы не переиспользуется: история баз не смешивается."""
+    from app.db.models import ChatSession
+
+    client = _client([AssistantMessage(content="a1"), AssistantMessage(content="a2")])
+    try:
+        with client:
+            r1 = client.post("/chat", json={"message": "q1", "user_id": TEST_USER, "base_name": "base_a"})
+            assert r1.status_code == 200, r1.text
+            sid_a = _parse_sse(r1.text)["done"][0]["session_id"]
+            # Тот же session_id, но другая база -> новая сессия.
+            r2 = client.post(
+                "/chat", json={"message": "q2", "user_id": TEST_USER, "session_id": sid_a, "base_name": "base_b"}
+            )
+            assert r2.status_code == 200, r2.text
+            sid_b = _parse_sse(r2.text)["done"][0]["session_id"]
+            assert sid_b != sid_a
+
+        import asyncio
+
+        from app.db.session import engine
+
+        async def bases() -> dict[int, str | None]:
+            await engine.dispose()
+            async with SessionFactory() as s:
+                rows = (await s.execute(select(ChatSession.id, ChatSession.base_name))).all()
+                return {i: b for i, b in rows}
+
+        mapping = asyncio.run(bases())
+        assert mapping[sid_a] == "base_a"
+        assert mapping[sid_b] == "base_b"
+    finally:
+        _cleanup()
+
+
 def test_chat_unknown_session_404() -> None:
     client = _client([AssistantMessage(content="x")])
     with client:

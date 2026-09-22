@@ -65,6 +65,8 @@ class ChatRequest(BaseModel):
     context_size: int | None = Field(
         default=None, ge=1, le=100, description="Сколько последних пар сообщений передавать в LLM"
     )
+    # Имя ИБ 1С (НРег) для мультибазовости: считает BSL (БСП или разбор строки соединения).
+    base_name: str | None = Field(default=None, max_length=128)
 
     model_config = {"extra": "ignore"}
 
@@ -145,6 +147,7 @@ async def chat(
             user = User(onec_id=req.user_id, display_name=req.user_id)
             session.add(user)
             await session.flush()
+        chat_session = None
         if req.session_id is not None:
             chat_session = (
                 await session.execute(
@@ -153,8 +156,14 @@ async def chat(
             ).scalar_one_or_none()
             if chat_session is None:
                 raise HTTPException(status_code=404, detail="session not found")
-        else:
-            chat_session = ChatSession(user_id=user.id, title=req.message[:80])
+            if req.base_name and chat_session.base_name and chat_session.base_name != req.base_name:
+                # Сессия чужой базы — историю не смешиваем, заводим новую.
+                chat_session = None
+            elif req.base_name and not chat_session.base_name:
+                # Старая сессия без базы — привязываем к текущей.
+                chat_session.base_name = req.base_name
+        if chat_session is None:
+            chat_session = ChatSession(user_id=user.id, title=req.message[:80], base_name=req.base_name)
             session.add(chat_session)
             await session.flush()
         session_id, profile = chat_session.id, user.access_profile
@@ -202,6 +211,7 @@ async def chat(
                     user_message=user_content,
                     user_id=req.user_id,
                     access_profile=profile,
+                    base_name=req.base_name or "",
                     max_rounds=settings.agent_max_rounds,
                     history=history if history else None,
                 )
@@ -222,6 +232,7 @@ async def chat(
             user_message=user_content,
             user_id=req.user_id,
             access_profile=profile,
+            base_name=req.base_name or "",
             max_rounds=settings.agent_max_rounds,
             history=history if history else None,
         )

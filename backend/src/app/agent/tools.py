@@ -20,6 +20,8 @@ class ToolContext:
     # Профиль прав для фильтрации retrieval (см. AGENTS.md, «Схема запросов»).
     # Резолвится вызывающей стороной (чат-эндпоинт — из таблицы users).
     access_profile: str = "all"
+    # Имя ИБ 1С (НРег): для будущей маршрутизации по базам.
+    base_name: str = ""
 
 
 ToolHandler = Callable[[Any, ToolContext], Coroutine[Any, Any, str]]

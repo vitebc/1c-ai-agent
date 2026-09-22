@@ -73,6 +73,7 @@ async def run_agent(
     user_message: str | list[dict[str, Any]] = "",
     user_id: str = "dev",
     access_profile: str = "all",
+    base_name: str = "",
     max_rounds: int = 6,
     history: list[dict[str, Any]] | None = None,
 ) -> AgentResult:
@@ -82,7 +83,7 @@ async def run_agent(
     if history:
         messages.extend(history)
     messages.append({"role": "user", "content": user_message})
-    ctx = ToolContext(user_id=user_id, access_profile=access_profile)
+    ctx = ToolContext(user_id=user_id, access_profile=access_profile, base_name=base_name)
     called: list[str] = []
     errors = 0
 
