@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -51,6 +52,22 @@ class AgentResult:
     tool_errors: int = 0
 
 
+def _preview(content: str | list[dict[str, Any]] | None, limit: int = 500) -> str:
+    """Короткий текст для логов: data URI выкидываем, пробелы жмём, режем."""
+    if not isinstance(content, str):
+        chunks = []
+        for part in content or []:
+            if not isinstance(part, dict):
+                continue
+            if part.get("type") == "text":
+                chunks.append(str(part.get("text", "")))
+            elif part.get("type") == "image_url":
+                chunks.append("[image]")
+        content = " ".join(chunks)
+    text = " ".join(content.split())
+    return text if len(text) <= limit else text[:limit] + "…"
+
+
 def _assistant_message(msg: AssistantMessage) -> dict[str, Any]:
     return {
         "role": "assistant",
@@ -86,12 +103,25 @@ async def run_agent(
     ctx = ToolContext(user_id=user_id, access_profile=access_profile, base_name=base_name)
     called: list[str] = []
     errors = 0
+    started = time.monotonic()
+    base = base_name or "-"
+    log.info("user=%s base=%s q=%s", user_id, base, _preview(user_message))
 
     for round_no in range(1, max_rounds + 1):
         resp = await llm.complete(messages, registry.schemas())
         messages.append(_assistant_message(resp))
         if not resp.tool_calls:
-            log.info("user=%s rounds=%d tools=%s errors=%d answered", user_id, round_no, called, errors)
+            elapsed = time.monotonic() - started
+            log.info(
+                "user=%s base=%s rounds=%d tools=%s errors=%d elapsed=%.1fs answered: %s",
+                user_id,
+                base,
+                round_no,
+                called,
+                errors,
+                elapsed,
+                _preview(resp.content),
+            )
             return AgentResult(answer=resp.content or "", rounds=len(called) + 1, tool_calls=called, tool_errors=errors)
         for call in resp.tool_calls:
             called.append(call.name)
@@ -108,7 +138,14 @@ async def run_agent(
             )
             messages.append({"role": "tool", "tool_call_id": call.id, "content": feedback})
 
-    log.warning("user=%s rounds exhausted: tools=%s errors=%d", user_id, called, errors)
+    log.warning(
+        "user=%s base=%s rounds exhausted: tools=%s errors=%d elapsed=%.1fs",
+        user_id,
+        base,
+        called,
+        errors,
+        time.monotonic() - started,
+    )
     return AgentResult(
         answer="Не уложился в лимит раундов диалога с инструментами. Попробуйте уточнить вопрос.",
         rounds=max_rounds,
