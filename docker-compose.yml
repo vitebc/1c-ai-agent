@@ -61,7 +61,9 @@ services:
   # Python-прокси из форка vladimir-kharin/1c_mcp: Streamable HTTP + per-user OAuth2.
   # MCP_ONEC_URL указывает на тестовую базу 1С (Windows-VM пользователя).
   mcp-proxy:
-    image: ${MCP_PROXY_IMAGE:-ghcr.io/placeholder/1c-mcp-proxy:latest}
+    # Собирается из сабмодуля onec/1c_mcp (пин 5abe316, см. onec/1c_mcp.md).
+    build: ./onec/1c_mcp
+    image: ${MCP_PROXY_IMAGE:-1c-ai-agent-mcp-proxy:local}
     profiles: ["onec"]
     restart: unless-stopped
     environment:
