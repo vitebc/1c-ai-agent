@@ -46,6 +46,14 @@
 					<Group>Vertical</Group>
 					<ExtendedTooltip name="СтраницаДиалогРасширеннаяПодсказка" id="7"/>
 					<ChildItems>
+						<HTMLDocumentField name="ОтветHTML" id="11">
+							<DataPath>ОтветHTML</DataPath>
+							<TitleLocation>None</TitleLocation>
+							<HorizontalStretch>true</HorizontalStretch>
+							<VerticalStretch>true</VerticalStretch>
+							<ContextMenu name="ОтветHTMLКонтекстноеМеню" id="12"/>
+							<ExtendedTooltip name="ОтветHTMLРасширеннаяПодсказка" id="13"/>
+						</HTMLDocumentField>
 						<InputField name="Промпт" id="8">
 							<DataPath>Промпт</DataPath>
 							<Title>
@@ -56,20 +64,12 @@
 							</Title>
 							<MultiLine>true</MultiLine>
 							<AutoMaxWidth>false</AutoMaxWidth>
-							<Height>8</Height>
+							<Height>3</Height>
 							<HorizontalStretch>true</HorizontalStretch>
 							<VerticalStretch>false</VerticalStretch>
 							<ContextMenu name="ПромптКонтекстноеМеню" id="9"/>
 							<ExtendedTooltip name="ПромптРасширеннаяПодсказка" id="10"/>
 						</InputField>
-						<HTMLDocumentField name="ОтветHTML" id="11">
-							<DataPath>ОтветHTML</DataPath>
-							<TitleLocation>None</TitleLocation>
-							<HorizontalStretch>true</HorizontalStretch>
-							<VerticalStretch>true</VerticalStretch>
-							<ContextMenu name="ОтветHTMLКонтекстноеМеню" id="12"/>
-							<ExtendedTooltip name="ОтветHTMLРасширеннаяПодсказка" id="13"/>
-						</HTMLDocumentField>
 						<UsualGroup name="ГруппаКоманды" id="14">
 							<Group>HorizontalIfPossible</Group>
 							<ExtendedTooltip name="ГруппаКомандыРасширеннаяПодсказка" id="15"/>

@@ -52,7 +52,7 @@
 	    .content {
 	        color: #000000;
 	        line-height: 1.6;
-	        font-size: 14px;
+	        font-size: 13px;
 	        font-family: 'Consolas', 'Monaco', 'Menlo', 'Courier New', monospace, 'Segoe UI Emoji', 'Segoe UI Symbol';
 	        white-space: pre-wrap;
 	        word-wrap: break-word;
@@ -70,7 +70,7 @@
 	        padding: 2px 6px;
 	        border-radius: 3px;
 	        font-family: 'Consolas', 'Monaco', 'Menlo', 'Courier New', monospace;
-	        font-size: 13px;
+	        font-size: 12px;
 	        color: #a31515;
 	        border: 1px solid #e0e0e0;
 	    }
@@ -81,7 +81,7 @@
 	        overflow-x: auto;
 	        border: 1px solid #d4d4d4;
 	        font-family: 'Consolas', 'Monaco', 'Menlo', 'Courier New', monospace;
-	        font-size: 13px;
+	        font-size: 12px;
 	        line-height: 1.5;
 	    }
 	    pre code {
