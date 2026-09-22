@@ -99,9 +99,12 @@ async def run_agent(
     base_name: str = "",
     max_rounds: int = 6,
     history: list[dict[str, Any]] | None = None,
+    extra_system: str = "",
+    skill_name: str = "",
 ) -> AgentResult:
+    system = SYSTEM_PROMPT + ("\n\n" + extra_system.strip() if extra_system.strip() else "")
     messages: list[dict[str, Any]] = [
-        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "system", "content": system},
     ]
     if history:
         messages.extend(history)
@@ -111,7 +114,8 @@ async def run_agent(
     errors = 0
     started = time.monotonic()
     base = base_name or "-"
-    log.info("user=%s base=%s q=%s", user_id, base, _preview(user_message))
+    skill = skill_name or "-"
+    log.info("user=%s base=%s skill=%s q=%s", user_id, base, skill, _preview(user_message))
 
     for round_no in range(1, max_rounds + 1):
         resp = await llm.complete(messages, registry.schemas())
@@ -119,9 +123,10 @@ async def run_agent(
         if not resp.tool_calls:
             elapsed = time.monotonic() - started
             log.info(
-                "user=%s base=%s rounds=%d tools=%s errors=%d elapsed=%.1fs answered: %s",
+                "user=%s base=%s skill=%s rounds=%d tools=%s errors=%d elapsed=%.1fs answered: %s",
                 user_id,
                 base,
+                skill,
                 round_no,
                 called,
                 errors,
@@ -145,9 +150,10 @@ async def run_agent(
             messages.append({"role": "tool", "tool_call_id": call.id, "content": feedback})
 
     log.warning(
-        "user=%s base=%s rounds exhausted: tools=%s errors=%d elapsed=%.1fs",
+        "user=%s base=%s skill=%s rounds exhausted: tools=%s errors=%d elapsed=%.1fs",
         user_id,
         base,
+        skill,
         called,
         errors,
         time.monotonic() - started,

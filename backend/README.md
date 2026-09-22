@@ -87,9 +87,14 @@ EOF
 профиль `rag` в compose). Fake — детерминированные вектора с лексическим
 ранжированием: честный тест plumbing'а retrieval, не качества поиска.
 
-Чат: `POST /chat {message, session_id?, user_id?}` — SSE (`tool`/`answer`/`done`),
+Чат: `POST /chat {message, session_id?, user_id?, skill?}` — SSE (`tool`/`answer`/`done`),
 история пишется в postgres. Профиль прав пользователя берётся из `users`
 (`access_profile`, дефолт `all`).
+
+Скилы: `skills/<name>/SKILL.md` (формат — `skills/SKILL.md`). Бэкенд фильтрует
+реестр по `tools` скила и дописывает его промпт; выбор — явный `skill` из формы,
+залипший в сессии или авто-матчинг по `description`. `GET /skills` отдаёт список
+для дропдауна 1С. Новый сценарий — новый файл, без рестарта.
 
 DB-тесты (`test_rag_db.py`, `test_chat_api.py`) требуют поднятый postgres.
 

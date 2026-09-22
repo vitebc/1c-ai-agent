@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import uuid
 from collections.abc import AsyncIterator
 from typing import Any
@@ -29,9 +30,12 @@ from app.llm import ChatLLM, OpenAICompatibleLLM
 from app.llm.client import build_user_content
 from app.onec import McpOnecClient, build_onec_tools
 from app.rag import build_embeddings, make_kb_search
+from app.skills import Skill, SkillRegistry
 from app.tools import MOCK_ONEC_TOOLS
 
 router = APIRouter()
+
+log = logging.getLogger("agent1c.chat")
 
 # In-memory store для фоновых задач (достаточно для совместимости с BSL).
 # Потокобезопасность не нужна — один процесс, GIL.
@@ -67,6 +71,8 @@ class ChatRequest(BaseModel):
     )
     # Имя ИБ 1С (НРег) для мультибазовости: считает BSL (БСП или разбор строки соединения).
     base_name: str | None = Field(default=None, max_length=128)
+    # Рантайм-скил (backend/skills/<name>); пусто — авто-матчинг по description.
+    skill: str | None = Field(default=None, max_length=64)
 
     model_config = {"extra": "ignore"}
 
@@ -94,6 +100,22 @@ async def get_registry() -> ToolRegistry:
     return ToolRegistry(MOCK_ONEC_TOOLS + [make_kb_search(SessionFactory, embeddings)])
 
 
+async def get_skill_registry() -> SkillRegistry:
+    # Перечитываем файлы на каждый запрос: новый SKILL.md подхватывается без рестарта.
+    return SkillRegistry.load(settings.skills_dir)
+
+
+@router.get("/skills")
+async def list_skills(skills: SkillRegistry = Depends(get_skill_registry)) -> JSONResponse:  # noqa: B008
+    """Скилы для дропдауна формы 1С: имя + описание + инструменты + битые файлы."""
+    return JSONResponse(
+        {
+            "skills": [{"name": s.name, "description": s.description, "tools": list(s.tools)} for s in skills.skills],
+            "errors": list(skills.errors),
+        }
+    )
+
+
 def _history_to_messages(rows: list[Message]) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
     for m in rows:
@@ -119,6 +141,7 @@ async def chat_result(job_id: str) -> JSONResponse:
             "job_id": job_id,
             "status": "done",
             "session_id": job["session_id"],
+            "skill": job.get("skill_name"),
             "answer": result.answer,
             "rounds": result.rounds,
             "tool_calls": result.tool_calls,
@@ -135,6 +158,7 @@ async def chat(
     ),
     llm: ChatLLM = Depends(get_llm),  # noqa: B008 — идиома FastAPI
     registry: ToolRegistry = Depends(get_registry),  # noqa: B008 — идиома FastAPI
+    skills: SkillRegistry = Depends(get_skill_registry),  # noqa: B008 — идиома FastAPI
 ) -> Any:
     # Защита от огромных вложений на уровне сериализации уже есть (max_length),
     # но дополнительно режем число вложений
@@ -167,6 +191,25 @@ async def chat(
             session.add(chat_session)
             await session.flush()
         session_id, profile = chat_session.id, user.access_profile
+        # Скил: явный выбор > залипший в сессии > авто-матчинг. Итог пишем в сессию.
+        skill: Skill | None = None
+        if req.skill is not None:
+            skill = skills.get(req.skill)
+            if skill is None:
+                raise HTTPException(status_code=404, detail=f"skill not found: {req.skill}")
+        elif chat_session.skill_name:
+            skill = skills.get(chat_session.skill_name)
+            if skill is None:
+                chat_session.skill_name = None  # файл скила удалён — отвязываем
+        if skill is None and req.skill is None:
+            embeddings = build_embeddings(settings.embeddings_provider, settings.tei_base_url)
+            skill = await skills.match(req.message, embeddings)
+        if skill is not None:
+            chat_session.skill_name = skill.name
+            missing = [t for t in skill.tools if t not in registry.names]
+            if missing:
+                log.warning("скил %s ссылается на неизвестные инструменты: %s", skill.name, missing)
+            registry = registry.subset(skill.tools)
         # История до текущего сообщения
         history_rows: list[Message] = []
         # Загружаем историю если нужен context_size или просто для передачи в LLM
@@ -199,9 +242,16 @@ async def chat(
         ]
     user_content: str | list[dict[str, Any]] = build_user_content(req.message, att_dicts)
 
+    extra_system = skill.system_block if skill is not None else ""
+    skill_name = skill.name if skill is not None else ""
     if background:
         job_id = uuid.uuid4().hex
-        _background_jobs[job_id] = {"status": "running", "session_id": session_id, "result": None}
+        _background_jobs[job_id] = {
+            "status": "running",
+            "session_id": session_id,
+            "skill_name": skill_name or None,
+            "result": None,
+        }
 
         async def _run_bg() -> None:
             try:
@@ -214,6 +264,8 @@ async def chat(
                     base_name=req.base_name or "",
                     max_rounds=settings.agent_max_rounds,
                     history=history if history else None,
+                    extra_system=extra_system,
+                    skill_name=skill_name,
                 )
                 async with SessionFactory() as s:
                     s.add(Message(session_id=session_id, role="assistant", content=result.answer))
@@ -235,6 +287,8 @@ async def chat(
             base_name=req.base_name or "",
             max_rounds=settings.agent_max_rounds,
             history=history if history else None,
+            extra_system=extra_system,
+            skill_name=skill_name,
         )
     except Exception as e:  # noqa: BLE001 — показываем ошибку в чате, а не 500
         # 1С ждёт SSE, поэтому отдаём ошибку как обычный answer, чтобы форма показала текст а не "HTTP 500"
@@ -250,14 +304,19 @@ async def chat(
         session.add(Message(session_id=session_id, role="assistant", content=result.answer))
         await session.commit()
 
-    return StreamingResponse(_events(session_id, result), media_type="text/event-stream")
+    return StreamingResponse(_events(session_id, result, skill_name), media_type="text/event-stream")
 
 
-async def _events(session_id: int, result: AgentResult) -> AsyncIterator[str]:
+async def _events(session_id: int, result: AgentResult, skill_name: str = "") -> AsyncIterator[str]:
     for tool_name in result.tool_calls:
         yield f"event: tool\ndata: {json.dumps({'tool': tool_name}, ensure_ascii=False)}\n\n"
     # Ответ кусками по ~500 символов — скелет стриминга до токенного.
     for i in range(0, len(result.answer), 500):
         yield f"event: answer\ndata: {json.dumps({'delta': result.answer[i : i + 500]}, ensure_ascii=False)}\n\n"
-    meta = {"session_id": session_id, "rounds": result.rounds, "tool_errors": result.tool_errors}
+    meta = {
+        "session_id": session_id,
+        "skill": skill_name or None,
+        "rounds": result.rounds,
+        "tool_errors": result.tool_errors,
+    }
     yield f"event: done\ndata: {json.dumps(meta, ensure_ascii=False)}\n\n"

@@ -34,6 +34,8 @@ class ChatSession(Base):
     title: Mapped[str] = mapped_column(String(256), default="")
     # Имя ИБ 1С (НРег): сессии разных баз не смешиваем.
     base_name: Mapped[str | None] = mapped_column(String(128), default=None)
+    # Рантайм-скил сессии (backend/skills/<name>); NULL — без скила.
+    skill_name: Mapped[str | None] = mapped_column(String(64), default=None)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
 

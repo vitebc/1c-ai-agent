@@ -56,6 +56,14 @@ class ToolRegistry:
     def get(self, name: str) -> ToolDefinition | None:
         return self._tools.get(name)
 
+    def subset(self, names: list[str] | tuple[str, ...]) -> ToolRegistry:
+        """Новый реестр только с перечисленными инструментами (порядок — как в списке).
+
+        Неизвестные имена тихо отбрасываются — вызыватель логирует их сам.
+        """
+        wanted = list(names)
+        return ToolRegistry([self._tools[n] for n in wanted if n in self._tools])
+
     @property
     def names(self) -> list[str]:
         return sorted(self._tools)

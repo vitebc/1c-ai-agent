@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -39,6 +41,9 @@ class Settings(BaseSettings):
     # Live требует доступного прокси; токен — только при MCP_AUTH_MODE=oauth2.
     onec_mode: str = "mock"
     onec_token: str | None = None
+
+    # Рантайм-скилы чат-агента (backend/skills/*/SKILL.md). Перечитываются на каждый запрос.
+    skills_dir: str = str(Path(__file__).resolve().parent.parent.parent / "skills")
 
     @field_validator("llm_api_key", mode="before")
     @classmethod
