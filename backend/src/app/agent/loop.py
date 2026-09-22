@@ -95,7 +95,7 @@ async def run_agent(
         for call in resp.tool_calls:
             called.append(call.name)
             feedback = await _execute_call(registry, ctx, call.name, call.arguments)
-            if feedback.startswith("ERROR"):
+            if feedback.startswith(("ERROR", "Ошибка выполнения", "Ошибка:")):
                 errors += 1
             log.info(
                 "user=%s round=%d tool=%s args=%.300s -> %.300s",
