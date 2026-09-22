@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -17,6 +18,8 @@ from pydantic import ValidationError
 
 from app.agent.tools import ToolContext, ToolRegistry
 from app.llm import AssistantMessage, ChatLLM
+
+log = logging.getLogger("agent1c.loop")
 
 SYSTEM_PROMPT = (
     "Ты — ассистент пользователей 1С, отвечаешь на русском языке.\n"
@@ -28,6 +31,8 @@ SYSTEM_PROMPT = (
     "и проверь через validate_query.\n"
     "Не выдумывай имена объектов — сверяй через инструменты метаданных. "
     "Если после проверки данных нет — так и скажи.\n"
+    "В execute_select параметры (&q) НЕ поддерживаются — подставляй значения литералами "
+    "в текст запроса, спецсимволы ПОДОБНО (%, _) экранируй как [%] и [_].\n"
     "Поиск по контрагентам/номенклатуре — нечёткий: разбивай фразу на слова и ищи "
     "ПОДОБНО %слово% по Наименование/НаименованиеПолное, период для заказов не обязателен — "
     "по умолчанию последние 5 по Дата УБЫВ.\n"
@@ -81,18 +86,28 @@ async def run_agent(
     called: list[str] = []
     errors = 0
 
-    for _ in range(max_rounds):
+    for round_no in range(1, max_rounds + 1):
         resp = await llm.complete(messages, registry.schemas())
         messages.append(_assistant_message(resp))
         if not resp.tool_calls:
+            log.info("user=%s rounds=%d tools=%s errors=%d answered", user_id, round_no, called, errors)
             return AgentResult(answer=resp.content or "", rounds=len(called) + 1, tool_calls=called, tool_errors=errors)
         for call in resp.tool_calls:
             called.append(call.name)
             feedback = await _execute_call(registry, ctx, call.name, call.arguments)
             if feedback.startswith("ERROR"):
                 errors += 1
+            log.info(
+                "user=%s round=%d tool=%s args=%.300s -> %.300s",
+                user_id,
+                round_no,
+                call.name,
+                call.arguments,
+                feedback,
+            )
             messages.append({"role": "tool", "tool_call_id": call.id, "content": feedback})
 
+    log.warning("user=%s rounds exhausted: tools=%s errors=%d", user_id, called, errors)
     return AgentResult(
         answer="Не уложился в лимит раундов диалога с инструментами. Попробуйте уточнить вопрос.",
         rounds=max_rounds,

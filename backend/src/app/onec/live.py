@@ -128,9 +128,10 @@ def build_onec_tools(client: OnecClient) -> list[ToolDefinition]:
             name="execute_select",
             description=(
                 "Универсальный SELECT по данным 1С (Документы, Справочники, Регистры). "
-                "ТОЛЬКО ВЫБРАТЬ/SELECT, кап 200. Сначала сверь имена через "
-                "list_metadata_objects/get_metadata_structure. Примеры: "
-                "'ВЫБРАТЬ Номер, Дата ИЗ Документ.ЗаказКлиента ГДЕ Партнер.Наименование ПОДОБНО &q'"
+                "ТОЛЬКО ВЫБРАТЬ/SELECT, кап 200. Параметры (&q) НЕ поддерживаются — только литералы. "
+                "Сначала сверь имена через "
+                "list_metadata_objects/get_metadata_structure. Пример: "
+                "'ВЫБРАТЬ Номер, Дата ИЗ Документ.ЗаказКлиента ГДЕ Партнер.Наименование ПОДОБНО \"%Прокудин%\"'"
             ),
             args_model=ExecuteSelectArgs,
             handler=select_handler,
