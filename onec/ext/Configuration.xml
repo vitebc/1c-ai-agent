@@ -67,6 +67,7 @@
 			<Subsystem>a1c_mcp_MCPСервер</Subsystem>
 			<Role>a1c_АгентДоступ</Role>
 			<CommonModule>a1c_МаркдаунПарсер</CommonModule>
+			<CommonModule>a1c_ЧатФоновый</CommonModule>
 			<DataProcessor>a1c_ИнструментОстатки</DataProcessor>
 			<DataProcessor>a1c_ИнструментКонтрагенты</DataProcessor>
 			<DataProcessor>a1c_ИнструментОтчеты</DataProcessor>
