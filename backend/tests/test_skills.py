@@ -54,17 +54,6 @@ def test_parse_example_skill_from_repo() -> None:
     assert "# Скилл: zakazy-prokudina" in skill.system_block
 
 
-def test_query_patterns_skill_rules() -> None:
-    """Скил шаблонов запросов: правило дат и validate-first на месте."""
-    reg = SkillRegistry.load(REPO_SKILLS)
-    assert not reg.errors, reg.errors
-    skill = reg.get("query-patterns")
-    assert skill is not None
-    assert {"execute_select", "validate_query", "list_metadata_objects", "get_metadata_structure"} <= set(skill.tools)
-    assert "ДАТА(2026,9,18)" in skill.prompt
-    assert "validate_query" in skill.prompt
-
-
 def test_parse_good_file(tmp_path: Path) -> None:
     _write_skill(tmp_path, "test-skill", GOOD_MD)
     reg = SkillRegistry.load(tmp_path)

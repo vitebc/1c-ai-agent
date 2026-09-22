@@ -69,12 +69,14 @@ def test_parse_repo_agents() -> None:
     assert not tz.allows_skill("zakazy-prokudina")
     analyst = reg.get("analyst")
     assert analyst is not None and "execute_select" in analyst.tools
-    # Правило дат и дисциплины запросов — в обоих дата-агентах.
+    # Дата-агенты обязаны знать про ленивую подгрузку паттерна запросов.
     for name in ("assistant", "analyst"):
-        prompt = reg.get(name)
-        assert prompt is not None
-        assert "ДАТА(2026,9,18)" in prompt.prompt
-        assert "validate_query" in prompt.prompt
+        agent = reg.get(name)
+        assert agent is not None
+        assert 'get_pattern({"name": "query-patterns"})' in agent.prompt
+        assert "get_pattern" in agent.tools
+    tz = reg.get("tz-helper")
+    assert tz is not None and "get_pattern" not in tz.tools
 
 
 def test_bad_agent_files_skipped(tmp_path: Path) -> None:

@@ -31,6 +31,7 @@ from app.db.session import SessionFactory
 from app.llm import ChatLLM, OpenAICompatibleLLM
 from app.llm.client import build_user_content
 from app.onec import McpOnecClient, build_onec_tools
+from app.patterns import make_pattern_tool
 from app.rag import build_embeddings, make_kb_search
 from app.skills import Skill, SkillRegistry
 from app.tools import MOCK_ONEC_TOOLS
@@ -96,12 +97,14 @@ async def get_llm() -> ChatLLM:
 
 async def get_registry() -> ToolRegistry:
     embeddings = build_embeddings(settings.embeddings_provider, settings.tei_base_url)
+    pattern_tool = make_pattern_tool(settings.patterns_dir)
+    extra = [make_kb_search(SessionFactory, embeddings)] + ([pattern_tool] if pattern_tool else [])
     if settings.onec_mode == "live":
         client = McpOnecClient(settings.onec_mcp_url, token=settings.onec_token)
-        return ToolRegistry(build_onec_tools(client) + [make_kb_search(SessionFactory, embeddings)])
+        return ToolRegistry(build_onec_tools(client) + extra)
     if settings.onec_mode != "mock":
         raise ValueError(f"ONEC_MODE: жди 'mock' или 'live', получено {settings.onec_mode!r}")
-    return ToolRegistry(MOCK_ONEC_TOOLS + [make_kb_search(SessionFactory, embeddings)])
+    return ToolRegistry(MOCK_ONEC_TOOLS + extra)
 
 
 async def get_skill_registry() -> SkillRegistry:

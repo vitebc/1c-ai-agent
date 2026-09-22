@@ -27,6 +27,7 @@ def test_registry_live_builds_without_connecting(monkeypatch: pytest.MonkeyPatch
         "execute_select",
         "validate_query",
         "search_knowledge_base",
+        "get_pattern",
     }
 
 

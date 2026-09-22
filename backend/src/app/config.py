@@ -46,6 +46,8 @@ class Settings(BaseSettings):
     skills_dir: str = str(Path(__file__).resolve().parent.parent.parent / "skills")
     # Рантайм-агенты (backend/agents/*/AGENT.md). Перечитываются на каждый запрос.
     agents_dir: str = str(Path(__file__).resolve().parent.parent.parent / "agents")
+    # Папка паттернов ленивой подгрузки (backend/patterns/*.md). Тоже на каждый запрос.
+    patterns_dir: str = str(Path(__file__).resolve().parent.parent.parent / "patterns")
     # Агент по умолчанию (явный дропдаун 1С; пусто в запросе = этот).
     default_agent: str = "assistant"
 
