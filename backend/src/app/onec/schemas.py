@@ -45,3 +45,18 @@ class ValidateQueryArgs(BaseModel):
     """Проверка синтаксиса запроса пробным выполнением (ПЕРВЫЕ 1)."""
 
     query: str = Field(min_length=1)
+
+
+class MetadataListArgs(BaseModel):
+    """Список объектов метаданных (разведка перед execute_select)."""
+
+    metaType: str | None = Field(default=None, description="Catalogs, Documents, Registers... (см. tools/list)")
+    nameMask: str | None = Field(default=None, description="Подстрока имени/синонима")
+    maxItems: int = Field(default=50, le=200)
+
+
+class MetadataStructureArgs(BaseModel):
+    """Структура объекта: поля, измерения, ресурсы, реквизиты."""
+
+    metaType: str | None = None
+    name: str | None = None

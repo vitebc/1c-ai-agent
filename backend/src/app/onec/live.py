@@ -12,7 +12,15 @@ from typing import Any
 
 from app.agent.tools import ToolContext, ToolDefinition
 from app.onec.client import OnecClient
-from app.onec.schemas import CounterpartyArgs, ExecuteSelectArgs, SkdReportArgs, StockArgs, ValidateQueryArgs
+from app.onec.schemas import (
+    CounterpartyArgs,
+    ExecuteSelectArgs,
+    MetadataListArgs,
+    MetadataStructureArgs,
+    SkdReportArgs,
+    StockArgs,
+    ValidateQueryArgs,
+)
 
 
 def _dump(payload: object) -> str:
@@ -67,6 +75,13 @@ async def _validate(client: OnecClient, args: ValidateQueryArgs, ctx: ToolContex
     return result if isinstance(result, str) else _dump(result)
 
 
+async def _meta(client: OnecClient, tool_name: str, args: MetadataListArgs | MetadataStructureArgs) -> str:
+    # Passthrough к одноимённым инструментам ядра 1c_mcp; None не шлём.
+    payload = {k: v for k, v in args.model_dump().items() if v is not None}
+    result = await client.call_tool(tool_name, payload)
+    return result if isinstance(result, str) else _dump(result)
+
+
 def build_onec_tools(client: OnecClient) -> list[ToolDefinition]:
     async def stock_handler(args: Any, ctx: ToolContext) -> str:
         return await _stock(client, args, ctx)
@@ -82,6 +97,12 @@ def build_onec_tools(client: OnecClient) -> list[ToolDefinition]:
 
     async def validate_handler(args: Any, ctx: ToolContext) -> str:
         return await _validate(client, args, ctx)
+
+    async def meta_list_handler(args: Any, ctx: ToolContext) -> str:  # noqa: ARG001
+        return await _meta(client, "list_metadata_objects", args)
+
+    async def meta_structure_handler(args: Any, ctx: ToolContext) -> str:  # noqa: ARG001
+        return await _meta(client, "get_metadata_structure", args)
 
     return [
         ToolDefinition(
@@ -119,5 +140,23 @@ def build_onec_tools(client: OnecClient) -> list[ToolDefinition]:
             description="Проверка синтаксиса запроса пробным выполнением (ПЕРВЫЕ 1). Возвращает вердикт строкой.",
             args_model=ValidateQueryArgs,
             handler=validate_handler,
+        ),
+        ToolDefinition(
+            name="list_metadata_objects",
+            description=(
+                "Разведка: список объектов метаданных 1С. Вызывай ПЕРЕД execute_select, "
+                "чтобы узнать точные имена справочников/документов/регистров."
+            ),
+            args_model=MetadataListArgs,
+            handler=meta_list_handler,
+        ),
+        ToolDefinition(
+            name="get_metadata_structure",
+            description=(
+                "Разведка: поля/измерения/ресурсы объекта метаданных. Вызывай ПЕРЕД execute_select, "
+                "чтобы запрос не упал на неверном имени поля."
+            ),
+            args_model=MetadataStructureArgs,
+            handler=meta_structure_handler,
         ),
     ]
