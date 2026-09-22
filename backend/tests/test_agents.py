@@ -69,6 +69,12 @@ def test_parse_repo_agents() -> None:
     assert not tz.allows_skill("zakazy-prokudina")
     analyst = reg.get("analyst")
     assert analyst is not None and "execute_select" in analyst.tools
+    # Правило дат и дисциплины запросов — в обоих дата-агентах.
+    for name in ("assistant", "analyst"):
+        prompt = reg.get(name)
+        assert prompt is not None
+        assert "ДАТА(2026,9,18)" in prompt.prompt
+        assert "validate_query" in prompt.prompt
 
 
 def test_bad_agent_files_skipped(tmp_path: Path) -> None:
