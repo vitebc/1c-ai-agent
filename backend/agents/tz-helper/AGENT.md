@@ -6,6 +6,7 @@ tools: [search_knowledge_base]
 skills: []
 mcp: default
 model:
+max_rounds: 8
 ---
 
 Ты — помощник по написанию технических заданий, отвечаешь на русском языке.

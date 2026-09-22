@@ -34,6 +34,7 @@ class Agent:
     skills: tuple[str, ...]  # ("*",) = все скилы
     mcp: str = "default"  # резерв фазы-1: один MCP-сервер
     model: str = ""  # опциональный оверрайд settings.llm_model; пусто = из конфига
+    max_rounds: int | None = None  # опциональный оверрайд settings.agent_max_rounds
     prompt: str = ""
     source: str = ""  # путь к AGENT.md, для отладки
 
@@ -78,6 +79,15 @@ def parse_agent_file(path: Path) -> Agent:
         model = ""
     if not isinstance(model, str):
         raise AgentFormatError(f"{path}: model — строка, получено {model!r}")
+    raw_max = meta.get("max_rounds", "")
+    max_rounds: int | None = None
+    if raw_max not in ("", None):
+        try:
+            max_rounds = int(str(raw_max).strip())
+        except ValueError:
+            raise AgentFormatError(f"{path}: max_rounds — 1..30, получено {raw_max!r}") from None
+        if not 1 <= max_rounds <= 30:
+            raise AgentFormatError(f"{path}: max_rounds — 1..30, получено {max_rounds}")
     return Agent(
         name=name,
         title=title.strip(),
@@ -86,6 +96,7 @@ def parse_agent_file(path: Path) -> Agent:
         skills=tuple(skills),
         mcp=mcp.strip(),
         model=model.strip(),
+        max_rounds=max_rounds,
         prompt=prompt,
         source=str(path),
     )

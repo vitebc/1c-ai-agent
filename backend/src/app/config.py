@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     llm_enable_thinking: bool = False
 
     # Агентская петля.
-    agent_max_rounds: int = 12
+    agent_max_rounds: int = 15
 
     database_url: str = "postgresql+asyncpg://agent:agent@localhost:5432/agentdb"
 

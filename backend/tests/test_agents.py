@@ -75,8 +75,11 @@ def test_parse_repo_agents() -> None:
         assert agent is not None
         assert 'get_pattern({"name": "query-patterns"})' in agent.prompt
         assert "get_pattern" in agent.tools
+        assert agent.max_rounds is None  # дефолт 15
     tz = reg.get("tz-helper")
     assert tz is not None and "get_pattern" not in tz.tools
+    assert tz.max_rounds == 8
+    assert AgentRegistry.load(REPO_AGENTS).get("assistant").max_rounds is None  # type: ignore[union-attr]
 
 
 def test_bad_agent_files_skipped(tmp_path: Path) -> None:
@@ -86,6 +89,10 @@ def test_bad_agent_files_skipped(tmp_path: Path) -> None:
     reg = AgentRegistry.load(tmp_path)
     assert reg.names == ["test-agent"]
     assert len(reg.errors) == 2
+    _write_agent(tmp_path, "bad-max", GOOD_MD.replace("mcp: default", "mcp: default\nmax_rounds: 99"))
+    reg2 = AgentRegistry.load(tmp_path)
+    assert reg2.names == ["test-agent"]
+    assert len(reg2.errors) == 3
 
 
 def test_load_missing_dir_returns_empty() -> None:

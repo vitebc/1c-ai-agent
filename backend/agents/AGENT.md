@@ -12,6 +12,7 @@ tools: [get_stock_balance, get_counterparty, run_skd_report, execute_select, val
 skills: [zakazy-prokudina]
 mcp: default
 model: qwen3.8-27b-1C
+max_rounds:
 ---
 <текст: системный промпт агента + 1-2 примера. ЗАМЕНЯЕТ базовый SYSTEM_PROMPT.>
 ```
@@ -25,6 +26,7 @@ model: qwen3.8-27b-1C
 - `skills` — имена из `backend/skills`; `[]` — без скилов, `["*"]` — все скилы. Неизвестные игнорируются с warning.
 - `mcp` — резерв (фаза-1: один MCP-сервер, игнорируется).
 - `model` — опциональный оверрайд `settings.llm_model`. Пусто — модель из конфига.
+- `max_rounds` — опциональный оверрайд `settings.agent_max_rounds` (1–30). Пусто — дефолт.
 - Тело после второго `---` — системный промпт агента, ЗАМЕНЯЕТ базовый. Может быть пустым (тогда базовый).
 - Поддерживается только этот плоский поднабор frontmatter (без вложенностей и многострочников).
 - Битый файл не роняет чат: агент пропускается, причина — в логе (`agents.errors`, см. `GET /agents`).

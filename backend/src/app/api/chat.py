@@ -343,6 +343,7 @@ async def chat(
     base_system = agent_spec.prompt.strip() or SYSTEM_PROMPT
     agent_name = agent_spec.name
     model_name = agent_spec.model or settings.llm_model
+    max_rounds = agent_spec.max_rounds if agent_spec.max_rounds is not None else settings.agent_max_rounds
     if background:
         job_id = uuid.uuid4().hex
         _background_jobs[job_id] = {
@@ -365,7 +366,7 @@ async def chat(
                     user_id=req.user_id,
                     access_profile=profile,
                     base_name=req.base_name or "",
-                    max_rounds=settings.agent_max_rounds,
+                    max_rounds=max_rounds,
                     history=history if history else None,
                     extra_system=extra_system,
                     skill_name=skill_name,
@@ -393,7 +394,7 @@ async def chat(
             user_id=req.user_id,
             access_profile=profile,
             base_name=req.base_name or "",
-            max_rounds=settings.agent_max_rounds,
+            max_rounds=max_rounds,
             history=history if history else None,
             extra_system=extra_system,
             skill_name=skill_name,
