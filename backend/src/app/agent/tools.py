@@ -22,6 +22,8 @@ class ToolContext:
     access_profile: str = "all"
     # Имя ИБ 1С (НРег): для будущей маршрутизации по базам.
     base_name: str = ""
+    # Рантайм-агент (backend/agents/<name>): для RAG-изоляции retrieval.
+    agent_name: str = ""
 
 
 ToolHandler = Callable[[Any, ToolContext], Coroutine[Any, Any, str]]

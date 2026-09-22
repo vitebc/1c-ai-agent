@@ -87,14 +87,22 @@ EOF
 профиль `rag` в compose). Fake — детерминированные вектора с лексическим
 ранжированием: честный тест plumbing'а retrieval, не качества поиска.
 
-Чат: `POST /chat {message, session_id?, user_id?, skill?}` — SSE (`tool`/`answer`/`done`),
+Чат: `POST /chat {message, session_id?, user_id?, agent?, skill?}` — SSE (`tool`/`answer`/`done`),
 история пишется в postgres. Профиль прав пользователя берётся из `users`
 (`access_profile`, дефолт `all`).
 
+Агенты: `agents/<name>/AGENT.md` (формат — `agents/AGENT.md`): системный промпт
+(ЗАМЕНЯЕТ базовый), фильтр `tools`, разрешённые `skills`, опциональный оверрайд
+`model`. Выбор — явный `agent` из дропдауна 1С (дефолт `assistant`), залипает
+в `sessions.agent_name`. `GET /agents` отдаёт список для формы. Новый агент —
+новый файл, без рестарта. RAG изолирован по агенту (`documents.agent_name`,
+NULL = общий).
+
 Скилы: `skills/<name>/SKILL.md` (формат — `skills/SKILL.md`). Бэкенд фильтрует
 реестр по `tools` скила и дописывает его промпт; выбор — явный `skill` из формы,
-залипший в сессии или авто-матчинг по `description`. `GET /skills` отдаёт список
-для дропдауна 1С. Новый сценарий — новый файл, без рестарта.
+залипший в сессии или авто-матчинг по `description` (только среди скилов агента).
+`GET /skills?agent=` отдаёт список для дропдауна 1С. Новый сценарий — новый файл,
+без рестарта.
 
 DB-тесты (`test_rag_db.py`, `test_chat_api.py`) требуют поднятый postgres.
 

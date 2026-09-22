@@ -11,8 +11,8 @@ import math
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
 
+from app.frontmatter import FrontmatterError, parse_frontmatter
 from app.rag.embeddings import Embeddings
 
 log = logging.getLogger("agent1c.skills")
@@ -38,39 +38,12 @@ class Skill:
         return f"# Скилл: {self.name}\n{self.prompt}".rstrip()
 
 
-def _parse_value(raw: str, source: str, key: str) -> Any:
-    raw = raw.strip()
-    if raw.startswith("["):
-        if not raw.endswith("]"):
-            raise SkillFormatError(f"{source}: ключ {key!r} — список не закрыт ']'")
-        return [p.strip().strip("'\"") for p in raw[1:-1].split(",") if p.strip().strip("'\"")]
-    if len(raw) >= 2 and raw[0] == raw[-1] and raw[0] in "'\"":
-        return raw[1:-1]
-    return raw
-
-
 def parse_skill_file(path: Path) -> Skill:
     """Прочитать и провалидировать один SKILL.md. Ошибки — SkillFormatError."""
     try:
-        text = path.read_text(encoding="utf-8")
-    except OSError as e:
-        raise SkillFormatError(f"{path}: не читается: {e}") from e
-    lines = text.splitlines()
-    if not lines or lines[0].strip() != "---":
-        raise SkillFormatError(f"{path}: файл обязан начинаться с '---'")
-    try:
-        end = lines.index("---", 1)
-    except ValueError:
-        raise SkillFormatError(f"{path}: нет закрывающего '---' frontmatter") from None
-    meta: dict[str, Any] = {}
-    for raw in lines[1:end]:
-        if not raw.strip() or raw.strip().startswith("#"):
-            continue
-        if ":" not in raw:
-            raise SkillFormatError(f"{path}: строка frontmatter без ':': {raw.strip()!r}")
-        key, _, value = raw.partition(":")
-        meta[key.strip()] = _parse_value(value, str(path), key.strip())
-    prompt = "\n".join(lines[end + 1 :]).strip()
+        meta, prompt = parse_frontmatter(path)
+    except FrontmatterError as e:
+        raise SkillFormatError(str(e)) from e
 
     name = meta.get("name", "")
     if not isinstance(name, str) or not _NAME_RE.match(name):

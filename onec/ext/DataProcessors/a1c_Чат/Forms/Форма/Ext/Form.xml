@@ -104,6 +104,21 @@
 										<Event name="OnChange">РазмерКонтекстаПриИзменении</Event>
 									</Events>
 								</InputField>
+								<InputField name="Агент" id="92">
+									<DataPath>Агент</DataPath>
+									<Title>
+										<v8:item>
+											<v8:lang>ru</v8:lang>
+											<v8:content>Агент</v8:content>
+										</v8:item>
+									</Title>
+									<DropListButton>true</DropListButton>
+									<ContextMenu name="АгентКонтекстноеМеню" id="93"/>
+									<ExtendedTooltip name="АгентРасширеннаяПодсказка" id="94"/>
+									<Events>
+										<Event name="OnChange">АгентПриИзменении</Event>
+									</Events>
+								</InputField>
 								<InputField name="Скил" id="89">
 									<DataPath>Скил</DataPath>
 									<Title>
@@ -115,6 +130,9 @@
 									<DropListButton>true</DropListButton>
 									<ContextMenu name="СкилКонтекстноеМеню" id="90"/>
 									<ExtendedTooltip name="СкилРасширеннаяПодсказка" id="91"/>
+									<Events>
+										<Event name="OnChange">СкилПриИзменении</Event>
+									</Events>
 								</InputField>
 								<Button name="Очистить" id="24">
 									<CommandName>Form.Command.Очистить</CommandName>
@@ -279,6 +297,21 @@
 			</Title>
 			<Type>
 				<v8:Type>xs:boolean</v8:Type>
+			</Type>
+		</Attribute>
+		<Attribute name="Агент" id="95">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Агент</v8:content>
+				</v8:item>
+			</Title>
+			<Type>
+				<v8:Type>xs:string</v8:Type>
+				<v8:StringQualifiers>
+					<v8:Length>64</v8:Length>
+					<v8:AllowedLength>Variable</v8:AllowedLength>
+				</v8:StringQualifiers>
 			</Type>
 		</Attribute>
 		<Attribute name="Скил" id="88">

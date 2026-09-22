@@ -31,6 +31,7 @@ async def retrieve(
     query: str,
     access_profile: str,
     top_k: int = 5,
+    agent_name: str = "",
 ) -> list[dict[str, str]]:
     vectors = await embeddings.embed([query])
     stmt = (
@@ -41,6 +42,9 @@ async def retrieve(
     )
     if access_profile != "all":
         stmt = stmt.where(or_(Document.access_profile == "all", Document.access_profile == access_profile))
+    if agent_name:
+        # RAG-изоляция по агенту: общий документ (NULL) виден всем агентам.
+        stmt = stmt.where(or_(Document.agent_name.is_(None), Document.agent_name == agent_name))
     async with session_factory() as session:
         rows = (await session.execute(stmt)).all()
     return [{"title": title, "text": text} for title, text in rows]
@@ -57,6 +61,7 @@ def make_kb_search(
             query=args.query,
             access_profile=ctx.access_profile,
             top_k=args.top_k,
+            agent_name=ctx.agent_name,
         )
         if not rows:
             return json.dumps(

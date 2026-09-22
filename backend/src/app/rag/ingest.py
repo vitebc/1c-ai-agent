@@ -33,6 +33,7 @@ async def ingest_file(
     session_factory: async_sessionmaker[AsyncSession],
     embeddings: Embeddings,
     title: str | None = None,
+    agent_name: str | None = None,
 ) -> int:
     text = load_text(path)
     chunks = split_markdown(text)
@@ -44,6 +45,7 @@ async def ingest_file(
             title=title or path.stem,
             source=str(path),
             access_profile=access_profile,
+            agent_name=agent_name,
         )
         session.add(doc)
         await session.flush()

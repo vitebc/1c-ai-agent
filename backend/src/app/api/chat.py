@@ -22,7 +22,8 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
-from app.agent import AgentResult, ToolRegistry, run_agent
+from app.agent import SYSTEM_PROMPT, AgentResult, ToolRegistry, run_agent
+from app.agents import Agent, AgentRegistry
 from app.config import settings
 from app.db.models import ChatSession, Message, User
 from app.db.session import SessionFactory
@@ -73,6 +74,8 @@ class ChatRequest(BaseModel):
     base_name: str | None = Field(default=None, max_length=128)
     # Рантайм-скил (backend/skills/<name>); пусто — авто-матчинг по description.
     skill: str | None = Field(default=None, max_length=64)
+    # Рантайм-агент (backend/agents/<name>); пусто — агент по умолчанию.
+    agent: str | None = Field(default=None, max_length=64)
 
     model_config = {"extra": "ignore"}
 
@@ -105,12 +108,49 @@ async def get_skill_registry() -> SkillRegistry:
     return SkillRegistry.load(settings.skills_dir)
 
 
-@router.get("/skills")
-async def list_skills(skills: SkillRegistry = Depends(get_skill_registry)) -> JSONResponse:  # noqa: B008
-    """Скилы для дропдауна формы 1С: имя + описание + инструменты + битые файлы."""
+async def get_agent_registry() -> AgentRegistry:
+    # Перечитываем файлы на каждый запрос: новый AGENT.md подхватывается без рестарта.
+    return AgentRegistry.load(settings.agents_dir)
+
+
+@router.get("/agents")
+async def list_agents(agents: AgentRegistry = Depends(get_agent_registry)) -> JSONResponse:  # noqa: B008
+    """Агенты для дропдауна формы 1С: имя + title + описание + инструменты + битые файлы."""
     return JSONResponse(
         {
-            "skills": [{"name": s.name, "description": s.description, "tools": list(s.tools)} for s in skills.skills],
+            "default": settings.default_agent,
+            "agents": [
+                {
+                    "name": a.name,
+                    "title": a.title,
+                    "description": a.description,
+                    "tools": list(a.tools),
+                    "skills": list(a.skills),
+                }
+                for a in agents.agents
+            ],
+            "errors": list(agents.errors),
+        }
+    )
+
+
+@router.get("/skills")
+async def list_skills(
+    skills: SkillRegistry = Depends(get_skill_registry),  # noqa: B008
+    agents: AgentRegistry = Depends(get_agent_registry),  # noqa: B008
+    agent: str | None = Query(default=None, max_length=64, description="Фильтр скилов по агенту"),
+) -> JSONResponse:
+    """Скилы для дропдауна формы 1С: имя + описание + инструменты + битые файлы."""
+    visible = skills.skills
+    if agent is not None:
+        spec = agents.get(agent)
+        if spec is None:
+            raise HTTPException(status_code=404, detail=f"agent not found: {agent}")
+        if not spec.allows_all_skills:
+            visible = [s for s in visible if s.name in spec.skills]
+    return JSONResponse(
+        {
+            "skills": [{"name": s.name, "description": s.description, "tools": list(s.tools)} for s in visible],
             "errors": list(skills.errors),
         }
     )
@@ -141,6 +181,7 @@ async def chat_result(job_id: str) -> JSONResponse:
             "job_id": job_id,
             "status": "done",
             "session_id": job["session_id"],
+            "agent": job.get("agent_name"),
             "skill": job.get("skill_name"),
             "answer": result.answer,
             "rounds": result.rounds,
@@ -159,6 +200,7 @@ async def chat(
     llm: ChatLLM = Depends(get_llm),  # noqa: B008 — идиома FastAPI
     registry: ToolRegistry = Depends(get_registry),  # noqa: B008 — идиома FastAPI
     skills: SkillRegistry = Depends(get_skill_registry),  # noqa: B008 — идиома FastAPI
+    agents: AgentRegistry = Depends(get_agent_registry),  # noqa: B008 — идиома FastAPI
 ) -> Any:
     # Защита от огромных вложений на уровне сериализации уже есть (max_length),
     # но дополнительно режем число вложений
@@ -191,21 +233,66 @@ async def chat(
             session.add(chat_session)
             await session.flush()
         session_id, profile = chat_session.id, user.access_profile
-        # Скил: явный выбор > залипший в сессии > авто-матчинг. Итог пишем в сессию.
+        # Агент: явный выбор > залипший в сессии > дефолт. Итог пишем в сессию.
+        agent_spec: Agent | None = None
+        if req.agent is not None:
+            agent_spec = agents.get(req.agent)
+            if agent_spec is None:
+                raise HTTPException(status_code=404, detail=f"agent not found: {req.agent}")
+        elif chat_session.agent_name:
+            agent_spec = agents.get(chat_session.agent_name)
+            if agent_spec is None:
+                chat_session.agent_name = None  # файл агента удалён — отвязываем
+        if agent_spec is None:
+            agent_spec = agents.get(settings.default_agent)
+            if agent_spec is None and agents.agents:
+                agent_spec = agents.agents[0]
+            if agent_spec is None:
+                raise HTTPException(status_code=500, detail="no agents configured")
+        chat_session.agent_name = agent_spec.name
+        # Модель: оверрайд из AGENT.md, иначе из конфига.
+        if agent_spec.model and agent_spec.model != settings.llm_model:
+            llm = OpenAICompatibleLLM(
+                base_url=settings.llm_base_url,
+                api_key=settings.llm_api_key,
+                model=agent_spec.model,
+                temperature=settings.llm_temperature,
+                top_p=settings.llm_top_p,
+                top_k=settings.llm_top_k,
+                repetition_penalty=settings.llm_repetition_penalty,
+                enable_thinking=settings.llm_enable_thinking,
+            )
+            log.info("агент %s: модель %s (оверрайд)", agent_spec.name, agent_spec.model)
+        # Скил внутри агента: явный обязан быть разрешён, залипший чужой — сброс, иначе авто-матчинг среди своих.
         skill: Skill | None = None
         if req.skill is not None:
             skill = skills.get(req.skill)
             if skill is None:
                 raise HTTPException(status_code=404, detail=f"skill not found: {req.skill}")
+            if not agent_spec.allows_skill(skill.name):
+                raise HTTPException(status_code=404, detail=f"skill not available for agent {agent_spec.name}")
         elif chat_session.skill_name:
             skill = skills.get(chat_session.skill_name)
-            if skill is None:
-                chat_session.skill_name = None  # файл скила удалён — отвязываем
+            if skill is None or not agent_spec.allows_skill(skill.name):
+                chat_session.skill_name = None  # файл удалён или скил чужого агента — отвязываем
+                skill = None
         if skill is None and req.skill is None:
             embeddings = build_embeddings(settings.embeddings_provider, settings.tei_base_url)
-            skill = await skills.match(req.message, embeddings)
+            scoped = (
+                SkillRegistry(skills=list(skills.skills))
+                if agent_spec.allows_all_skills
+                else SkillRegistry(skills=[s for s in skills.skills if s.name in agent_spec.skills])
+            )
+            skill = await scoped.match(req.message, embeddings)
         if skill is not None:
             chat_session.skill_name = skill.name
+        else:
+            chat_session.skill_name = None
+        missing = [t for t in agent_spec.tools if t not in registry.names]
+        if missing:
+            log.warning("агент %s ссылается на неизвестные инструменты: %s", agent_spec.name, missing)
+        registry = registry.subset(agent_spec.tools)
+        if skill is not None:
             missing = [t for t in skill.tools if t not in registry.names]
             if missing:
                 log.warning("скил %s ссылается на неизвестные инструменты: %s", skill.name, missing)
@@ -244,12 +331,15 @@ async def chat(
 
     extra_system = skill.system_block if skill is not None else ""
     skill_name = skill.name if skill is not None else ""
+    base_system = agent_spec.prompt.strip() or SYSTEM_PROMPT
+    agent_name = agent_spec.name
     if background:
         job_id = uuid.uuid4().hex
         _background_jobs[job_id] = {
             "status": "running",
             "session_id": session_id,
             "skill_name": skill_name or None,
+            "agent_name": agent_name,
             "result": None,
         }
 
@@ -266,6 +356,8 @@ async def chat(
                     history=history if history else None,
                     extra_system=extra_system,
                     skill_name=skill_name,
+                    agent_name=agent_name,
+                    base_system=base_system,
                 )
                 async with SessionFactory() as s:
                     s.add(Message(session_id=session_id, role="assistant", content=result.answer))
@@ -275,7 +367,7 @@ async def chat(
                 _background_jobs[job_id].update({"status": "error", "error": str(e)})
 
         asyncio.create_task(_run_bg())
-        return JSONResponse({"job_id": job_id, "session_id": session_id, "status": "running"})
+        return JSONResponse({"job_id": job_id, "session_id": session_id, "status": "running", "agent": agent_name})
 
     try:
         result = await run_agent(
@@ -289,6 +381,8 @@ async def chat(
             history=history if history else None,
             extra_system=extra_system,
             skill_name=skill_name,
+            agent_name=agent_name,
+            base_system=base_system,
         )
     except Exception as e:  # noqa: BLE001 — показываем ошибку в чате, а не 500
         # 1С ждёт SSE, поэтому отдаём ошибку как обычный answer, чтобы форма показала текст а не "HTTP 500"
@@ -304,10 +398,12 @@ async def chat(
         session.add(Message(session_id=session_id, role="assistant", content=result.answer))
         await session.commit()
 
-    return StreamingResponse(_events(session_id, result, skill_name), media_type="text/event-stream")
+    return StreamingResponse(_events(session_id, result, skill_name, agent_name), media_type="text/event-stream")
 
 
-async def _events(session_id: int, result: AgentResult, skill_name: str = "") -> AsyncIterator[str]:
+async def _events(
+    session_id: int, result: AgentResult, skill_name: str = "", agent_name: str = ""
+) -> AsyncIterator[str]:
     for tool_name in result.tool_calls:
         yield f"event: tool\ndata: {json.dumps({'tool': tool_name}, ensure_ascii=False)}\n\n"
     # Ответ кусками по ~500 символов — скелет стриминга до токенного.
@@ -315,6 +411,7 @@ async def _events(session_id: int, result: AgentResult, skill_name: str = "") ->
         yield f"event: answer\ndata: {json.dumps({'delta': result.answer[i : i + 500]}, ensure_ascii=False)}\n\n"
     meta = {
         "session_id": session_id,
+        "agent": agent_name or None,
         "skill": skill_name or None,
         "rounds": result.rounds,
         "tool_errors": result.tool_errors,

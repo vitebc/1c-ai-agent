@@ -101,21 +101,24 @@ async def run_agent(
     history: list[dict[str, Any]] | None = None,
     extra_system: str = "",
     skill_name: str = "",
+    base_system: str = SYSTEM_PROMPT,
+    agent_name: str = "",
 ) -> AgentResult:
-    system = SYSTEM_PROMPT + ("\n\n" + extra_system.strip() if extra_system.strip() else "")
+    system = base_system + ("\n\n" + extra_system.strip() if extra_system.strip() else "")
     messages: list[dict[str, Any]] = [
         {"role": "system", "content": system},
     ]
     if history:
         messages.extend(history)
     messages.append({"role": "user", "content": user_message})
-    ctx = ToolContext(user_id=user_id, access_profile=access_profile, base_name=base_name)
+    ctx = ToolContext(user_id=user_id, access_profile=access_profile, base_name=base_name, agent_name=agent_name)
     called: list[str] = []
     errors = 0
     started = time.monotonic()
     base = base_name or "-"
     skill = skill_name or "-"
-    log.info("user=%s base=%s skill=%s q=%s", user_id, base, skill, _preview(user_message))
+    agent = agent_name or "-"
+    log.info("user=%s base=%s agent=%s skill=%s q=%s", user_id, base, agent, skill, _preview(user_message))
 
     for round_no in range(1, max_rounds + 1):
         resp = await llm.complete(messages, registry.schemas())
@@ -123,9 +126,10 @@ async def run_agent(
         if not resp.tool_calls:
             elapsed = time.monotonic() - started
             log.info(
-                "user=%s base=%s skill=%s rounds=%d tools=%s errors=%d elapsed=%.1fs answered: %s",
+                "user=%s base=%s agent=%s skill=%s rounds=%d tools=%s errors=%d elapsed=%.1fs answered: %s",
                 user_id,
                 base,
+                agent,
                 skill,
                 round_no,
                 called,
@@ -150,9 +154,10 @@ async def run_agent(
             messages.append({"role": "tool", "tool_call_id": call.id, "content": feedback})
 
     log.warning(
-        "user=%s base=%s skill=%s rounds exhausted: tools=%s errors=%d elapsed=%.1fs",
+        "user=%s base=%s agent=%s skill=%s rounds exhausted: tools=%s errors=%d elapsed=%.1fs",
         user_id,
         base,
+        agent,
         skill,
         called,
         errors,

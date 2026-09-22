@@ -44,6 +44,10 @@ class Settings(BaseSettings):
 
     # Рантайм-скилы чат-агента (backend/skills/*/SKILL.md). Перечитываются на каждый запрос.
     skills_dir: str = str(Path(__file__).resolve().parent.parent.parent / "skills")
+    # Рантайм-агенты (backend/agents/*/AGENT.md). Перечитываются на каждый запрос.
+    agents_dir: str = str(Path(__file__).resolve().parent.parent.parent / "agents")
+    # Агент по умолчанию (явный дропдаун 1С; пусто в запросе = этот).
+    default_agent: str = "assistant"
 
     @field_validator("llm_api_key", mode="before")
     @classmethod

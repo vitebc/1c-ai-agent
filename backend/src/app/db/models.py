@@ -36,6 +36,8 @@ class ChatSession(Base):
     base_name: Mapped[str | None] = mapped_column(String(128), default=None)
     # Рантайм-скил сессии (backend/skills/<name>); NULL — без скила.
     skill_name: Mapped[str | None] = mapped_column(String(64), default=None)
+    # Рантайм-агент сессии (backend/agents/<name>); NULL — дефолтный.
+    agent_name: Mapped[str | None] = mapped_column(String(64), default=None)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
 
@@ -58,6 +60,8 @@ class Document(Base):
     # Профиль прав: чанки документа видит только пользователь с таким же
     # access_profile либо 'all'. 'all' у документа = виден всем.
     access_profile: Mapped[str] = mapped_column(String(64), default="all")
+    # Рантайм-агент RAG-изоляции (backend/agents/<name>); NULL — общий документ.
+    agent_name: Mapped[str | None] = mapped_column(String(64), default=None, index=True)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
 
