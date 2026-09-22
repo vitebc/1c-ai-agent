@@ -1,9 +1,14 @@
+import logging
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.chat import router as chat_router
 from app.api.health import router as health_router
 from app.config import settings
+
+# Без этого INFO-логи петли (agent1c.loop) тонут: root-логгер по умолчанию WARNING.
+logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 
 
 def create_app() -> FastAPI:
