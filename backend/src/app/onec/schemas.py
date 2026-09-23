@@ -45,6 +45,9 @@ class ValidateQueryArgs(BaseModel):
     """Проверка синтаксиса запроса пробным выполнением (ПЕРВЫЕ 1)."""
 
     query: str = Field(min_length=1)
+    parameters: dict[str, object] | None = Field(
+        default=None, description="Параметры & для проверки, как в execute_query"
+    )
 
 
 class MetadataListArgs(BaseModel):
@@ -60,3 +63,43 @@ class MetadataStructureArgs(BaseModel):
 
     metaType: str | None = None
     name: str | None = None
+
+
+# --- Расширения из feenlace/mcp-1c (MIT) — адаптированы под наш CFE ---
+
+
+class GetMetadataTreeArgs(BaseModel):
+    """Дерево метаданных: типы объектов и подсистемы."""
+
+    subsystem: str | None = Field(default=None, description="Фильтр по имени подсистемы")
+    typeFilter: str | None = Field(default=None, description="Фильтр по типу: Catalogs, Documents...")
+
+
+class GetObjectStructureArgs(BaseModel):
+    """Структура одного объекта (синоним get_metadata_structure, имя как в дереве)."""
+
+    name: str = Field(
+        min_length=1, description="Имя объекта, например Справочник.Контрагенты или Catalog.Counterparties"
+    )
+    objectType: str | None = Field(default=None, description="Тип для уточнения, напр. Catalog, Document, Subsystem")
+
+
+class ExecuteQueryArgs(BaseModel):
+    """Запрос 1С с параметрами (&p), только ВЫБРАТЬ/SELECT."""
+
+    query: str = Field(min_length=1)
+    parameters: dict[str, object] | None = Field(
+        default=None, description='Значения &параметров, например {"q": "строка"}'
+    )
+    limit: int = Field(default=50, le=200)
+
+
+class GetEventLogArgs(BaseModel):
+    """Чтение журнала регистрации (только чтение, фильтр и кап)."""
+
+    dateFrom: str | None = Field(default=None, description="ISO-дата начала, напр. 2026-09-22T00:00:00")
+    dateTo: str | None = Field(default=None, description="ISO-дата конца")
+    level: str | None = Field(default=None, description="Уровень: Information, Warning, Error...")
+    user: str | None = Field(default=None, description="Подстрока имени пользователя")
+    event: str | None = Field(default=None, description="Подстрока имени события")
+    limit: int = Field(default=50, le=200)

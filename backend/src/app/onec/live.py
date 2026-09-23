@@ -16,7 +16,11 @@ from app.agent.tools import ToolContext, ToolDefinition
 from app.onec.client import OnecClient
 from app.onec.schemas import (
     CounterpartyArgs,
+    ExecuteQueryArgs,
     ExecuteSelectArgs,
+    GetEventLogArgs,
+    GetMetadataTreeArgs,
+    GetObjectStructureArgs,
     MetadataListArgs,
     MetadataStructureArgs,
     SkdReportArgs,
@@ -73,7 +77,31 @@ async def _select(client: OnecClient, args: ExecuteSelectArgs, ctx: ToolContext)
 
 
 async def _validate(client: OnecClient, args: ValidateQueryArgs, ctx: ToolContext) -> str:  # noqa: ARG001
-    result = await client.call_tool("validate_query", args.model_dump())
+    payload = {k: v for k, v in args.model_dump().items() if v is not None}
+    result = await client.call_tool("validate_query", payload)
+    return result if isinstance(result, str) else _dump(result)
+
+
+async def _execute_query(client: OnecClient, args: ExecuteQueryArgs, ctx: ToolContext) -> str:  # noqa: ARG001
+    payload = {k: v for k, v in args.model_dump().items() if v is not None}
+    return _dump(await client.call_tool("execute_query", payload))
+
+
+async def _tree(client: OnecClient, args: GetMetadataTreeArgs, ctx: ToolContext) -> str:  # noqa: ARG001
+    payload = {k: v for k, v in args.model_dump().items() if v is not None}
+    result = await client.call_tool("get_metadata_tree", payload)
+    return result if isinstance(result, str) else _dump(result)
+
+
+async def _object_structure(client: OnecClient, args: GetObjectStructureArgs, ctx: ToolContext) -> str:  # noqa: ARG001
+    payload = {k: v for k, v in args.model_dump().items() if v is not None}
+    result = await client.call_tool("get_object_structure", payload)
+    return result if isinstance(result, str) else _dump(result)
+
+
+async def _event_log(client: OnecClient, args: GetEventLogArgs, ctx: ToolContext) -> str:  # noqa: ARG001
+    payload = {k: v for k, v in args.model_dump().items() if v is not None}
+    result = await client.call_tool("get_event_log", payload)
     return result if isinstance(result, str) else _dump(result)
 
 
@@ -131,6 +159,18 @@ def build_onec_tools(client: OnecClient) -> list[ToolDefinition]:
     async def meta_structure_handler(args: Any, ctx: ToolContext) -> str:  # noqa: ARG001
         return await _meta(client, "get_metadata_structure", args)
 
+    async def tree_handler(args: Any, ctx: ToolContext) -> str:
+        return await _tree(client, args, ctx)
+
+    async def object_handler(args: Any, ctx: ToolContext) -> str:
+        return await _object_structure(client, args, ctx)
+
+    async def exec_query_handler(args: Any, ctx: ToolContext) -> str:
+        return await _execute_query(client, args, ctx)
+
+    async def event_log_handler(args: Any, ctx: ToolContext) -> str:
+        return await _event_log(client, args, ctx)
+
     return [
         ToolDefinition(
             name="get_stock_balance",
@@ -186,5 +226,29 @@ def build_onec_tools(client: OnecClient) -> list[ToolDefinition]:
             ),
             args_model=MetadataStructureArgs,
             handler=meta_structure_handler,
+        ),
+        ToolDefinition(
+            name="get_metadata_tree",
+            description="Дерево метаданных (feenlace/MIT): типы/объекты/подсистемы, только чтение.",
+            args_model=GetMetadataTreeArgs,
+            handler=tree_handler,
+        ),
+        ToolDefinition(
+            name="get_object_structure",
+            description="Структура объекта 1С (feenlace/MIT): реквизиты/ТЧ/измерения, только чтение.",
+            args_model=GetObjectStructureArgs,
+            handler=object_handler,
+        ),
+        ToolDefinition(
+            name="execute_query",
+            description="Запрос 1С с &параметрами (feenlace/MIT): ВЫБРАТЬ с parameters, кап 200.",
+            args_model=ExecuteQueryArgs,
+            handler=exec_query_handler,
+        ),
+        ToolDefinition(
+            name="get_event_log",
+            description="Журнал регистрации (feenlace/MIT): фильтр дата/уровень/пользователь, кап 200.",
+            args_model=GetEventLogArgs,
+            handler=event_log_handler,
         ),
     ]

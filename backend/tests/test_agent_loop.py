@@ -101,7 +101,8 @@ def test_max_rounds_guard() -> None:
 
 def test_registry_schemas() -> None:
     reg = ToolRegistry(MOCK_ONEC_TOOLS)
-    assert reg.names == ["get_counterparty", "get_stock_balance", "run_skd_report"]
-    schemas = reg.schemas()
-    assert {s["function"]["name"] for s in schemas} == set(reg.names)
+    assert set(reg.names) >= {"get_counterparty", "get_stock_balance", "run_skd_report"}
+    assert {s["function"]["name"] for s in reg.schemas()} == set(reg.names)
     assert reg.get("nope") is None
+    assert "get_metadata_tree" in reg.names
+    assert "execute_query" in reg.names

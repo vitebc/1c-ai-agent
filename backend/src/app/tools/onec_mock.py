@@ -10,7 +10,16 @@ import json
 from typing import Any, TypedDict
 
 from app.agent.tools import ToolContext, ToolDefinition
-from app.onec.schemas import CounterpartyArgs, SkdReportArgs, StockArgs
+from app.onec.schemas import (
+    CounterpartyArgs,
+    ExecuteQueryArgs,
+    GetEventLogArgs,
+    GetMetadataTreeArgs,
+    GetObjectStructureArgs,
+    SkdReportArgs,
+    StockArgs,
+    ValidateQueryArgs,
+)
 
 # --- Тестовые данные -----------------------------------------------------------
 
@@ -89,6 +98,37 @@ async def get_stock_balance(args: StockArgs, ctx: ToolContext) -> str:  # noqa: 
     return _dump({"found": False, "hint": "Номенклатура не найдена, уточните название у пользователя."})
 
 
+async def get_metadata_tree(args: GetMetadataTreeArgs, ctx: ToolContext) -> str:  # noqa: ARG001
+    tree = [
+        {"type": "Catalogs", "name": "Контрагенты", "synonym": "Контрагенты"},
+        {"type": "Catalogs", "name": "Номенклатура", "synonym": "Номенклатура"},
+        {"type": "Documents", "name": "ЗаказКлиента", "synonym": "Заказ клиента"},
+        {"type": "Documents", "name": "РеализацияТоваровУслуг", "synonym": "Реализация"},
+        {"type": "AccumulationRegisters", "name": "ТоварыНаСкладах", "synonym": "Товары на складах"},
+    ]
+    if args.typeFilter:
+        tree = [x for x in tree if x["type"].lower() == args.typeFilter.lower()]
+    if args.subsystem:
+        tree = [x for x in tree if args.subsystem.lower() in x["name"].lower()]
+    return _dump({"tree": tree[:20]})
+
+
+async def get_object_structure(args: GetObjectStructureArgs, ctx: ToolContext) -> str:  # noqa: ARG001
+    return _dump({"name": args.name, "objectType": args.objectType or "Unknown", "fields": ["Ссылка", "Наименование"]})
+
+
+async def execute_query(args: ExecuteQueryArgs, ctx: ToolContext) -> str:  # noqa: ARG001
+    return _dump({"rows": [], "truncated": False, "hint": f"мок execute_query: {args.query[:60]}"})
+
+
+async def validate_query_mock(args: ValidateQueryArgs, ctx: ToolContext) -> str:  # noqa: ARG001
+    return "OK: синтаксис корректен (мок)."
+
+
+async def get_event_log(args: GetEventLogArgs, ctx: ToolContext) -> str:  # noqa: ARG001
+    return _dump({"events": [], "hint": "мок-журнал пуст", "filter": args.model_dump()})
+
+
 MOCK_ONEC_TOOLS = [
     ToolDefinition(
         name="run_skd_report",
@@ -108,5 +148,35 @@ MOCK_ONEC_TOOLS = [
         description="Остатки номенклатуры по складам. Поиск товара по подстроке названия.",
         args_model=StockArgs,
         handler=get_stock_balance,
+    ),
+    ToolDefinition(
+        name="get_metadata_tree",
+        description="Дерево метаданных (feenlace/MIT): типы/объекты/подсистемы.",
+        args_model=GetMetadataTreeArgs,
+        handler=get_metadata_tree,
+    ),
+    ToolDefinition(
+        name="get_object_structure",
+        description="Структура объекта 1С (feenlace/MIT): реквизиты/ТЧ/измерения.",
+        args_model=GetObjectStructureArgs,
+        handler=get_object_structure,
+    ),
+    ToolDefinition(
+        name="execute_query",
+        description="Запрос 1С с &параметрами (feenlace/MIT): ВЫБРАТЬ с parameters.",
+        args_model=ExecuteQueryArgs,
+        handler=execute_query,
+    ),
+    ToolDefinition(
+        name="validate_query",
+        description="Проверка запроса 1С (feenlace: синтаксис + параметры).",
+        args_model=ValidateQueryArgs,
+        handler=validate_query_mock,
+    ),
+    ToolDefinition(
+        name="get_event_log",
+        description="Журнал регистрации (feenlace/MIT): фильтр дата/уровень/юзер.",
+        args_model=GetEventLogArgs,
+        handler=get_event_log,
     ),
 ]
