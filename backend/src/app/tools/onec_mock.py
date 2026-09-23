@@ -13,8 +13,12 @@ from app.agent.tools import ToolContext, ToolDefinition
 from app.onec.schemas import (
     CounterpartyArgs,
     ExecuteQueryArgs,
+    FindReferencesToObjectArgs,
+    GetAccessRightsArgs,
     GetEventLogArgs,
+    GetLinkOfObjectArgs,
     GetMetadataTreeArgs,
+    GetObjectByLinkArgs,
     GetObjectStructureArgs,
     SkdReportArgs,
     StockArgs,
@@ -129,6 +133,29 @@ async def get_event_log(args: GetEventLogArgs, ctx: ToolContext) -> str:  # noqa
     return _dump({"events": [], "hint": "мок-журнал пуст", "filter": args.model_dump()})
 
 
+async def get_object_by_link(args: GetObjectByLinkArgs, ctx: ToolContext) -> str:  # noqa: ARG001
+    return _dump(
+        {
+            "found": True,
+            "link": args.link,
+            "object": {"type": "Catalogs.Номенклатура", "ref": "mock-ref"},
+            "hint": "мок get_object_by_link",
+        }
+    )
+
+
+async def get_link_of_object(args: GetLinkOfObjectArgs, ctx: ToolContext) -> str:  # noqa: ARG001
+    return _dump({"link": f"mock-link-for-{args.ref}", "hint": "мок get_link_of_object"})
+
+
+async def find_references_to_object(args: FindReferencesToObjectArgs, ctx: ToolContext) -> str:  # noqa: ARG001
+    return _dump({"references": [], "count": 0, "hint": "мок find_references_to_object", "ref": args.ref})
+
+
+async def get_access_rights(args: GetAccessRightsArgs, ctx: ToolContext) -> str:  # noqa: ARG001
+    return _dump({"rights": ["Read", "Write"], "hint": "мок get_access_rights", "filter": args.model_dump()})
+
+
 MOCK_ONEC_TOOLS = [
     ToolDefinition(
         name="run_skd_report",
@@ -178,5 +205,29 @@ MOCK_ONEC_TOOLS = [
         description="Журнал регистрации (feenlace/MIT): фильтр дата/уровень/юзер.",
         args_model=GetEventLogArgs,
         handler=get_event_log,
+    ),
+    ToolDefinition(
+        name="get_object_by_link",
+        description="Объект по навигационной ссылке (OneBridge/MIT): читает объект по link.",
+        args_model=GetObjectByLinkArgs,
+        handler=get_object_by_link,
+    ),
+    ToolDefinition(
+        name="get_link_of_object",
+        description="Навигационная ссылка объекта (OneBridge/MIT): возвращает link по ref.",
+        args_model=GetLinkOfObjectArgs,
+        handler=get_link_of_object,
+    ),
+    ToolDefinition(
+        name="find_references_to_object",
+        description="Ссылки на объект в базе (OneBridge/MIT): поиск всех вхождений ref, кап 200.",
+        args_model=FindReferencesToObjectArgs,
+        handler=find_references_to_object,
+    ),
+    ToolDefinition(
+        name="get_access_rights",
+        description="Права доступа к объектам метаданных (OneBridge/MIT): чтение/запись/админ.",
+        args_model=GetAccessRightsArgs,
+        handler=get_access_rights,
     ),
 ]

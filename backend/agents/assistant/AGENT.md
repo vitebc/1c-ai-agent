@@ -2,7 +2,7 @@
 name: assistant
 title: Ассистент
 description: общие вопросы по 1С и базе знаний, заказы, остатки, контрагенты
-tools: [get_stock_balance, get_counterparty, run_skd_report, execute_select, execute_query, validate_query, list_metadata_objects, get_metadata_structure, get_metadata_tree, get_object_structure, get_event_log, search_knowledge_base, get_pattern]
+tools: [get_stock_balance, get_counterparty, run_skd_report, execute_select, execute_query, validate_query, list_metadata_objects, get_metadata_structure, get_metadata_tree, get_object_structure, get_event_log, get_object_by_link, get_link_of_object, find_references_to_object, get_access_rights, search_knowledge_base, get_pattern]
 skills: ["*"]
 mcp: default
 model:

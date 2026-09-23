@@ -22,6 +22,8 @@
 				<xr:Item xsi:type="xr:MDObjectRef">DataProcessor.a1c_ИнструментЗапросы</xr:Item>
 				<xr:Item xsi:type="xr:MDObjectRef">DataProcessor.a1c_ИнструментДерево</xr:Item>
 				<xr:Item xsi:type="xr:MDObjectRef">DataProcessor.a1c_ИнструментЖурнал</xr:Item>
+				<xr:Item xsi:type="xr:MDObjectRef">DataProcessor.a1c_ИнструментНавигация</xr:Item>
+				<xr:Item xsi:type="xr:MDObjectRef">DataProcessor.a1c_ИнструментПрава</xr:Item>
 			</Content>
 		</Properties>
 		<ChildObjects/>

@@ -18,8 +18,12 @@ from app.onec.schemas import (
     CounterpartyArgs,
     ExecuteQueryArgs,
     ExecuteSelectArgs,
+    FindReferencesToObjectArgs,
+    GetAccessRightsArgs,
     GetEventLogArgs,
+    GetLinkOfObjectArgs,
     GetMetadataTreeArgs,
+    GetObjectByLinkArgs,
     GetObjectStructureArgs,
     MetadataListArgs,
     MetadataStructureArgs,
@@ -105,6 +109,30 @@ async def _event_log(client: OnecClient, args: GetEventLogArgs, ctx: ToolContext
     return result if isinstance(result, str) else _dump(result)
 
 
+async def _object_by_link(client: OnecClient, args: GetObjectByLinkArgs, ctx: ToolContext) -> str:  # noqa: ARG001
+    payload = {k: v for k, v in args.model_dump().items() if v is not None}
+    result = await client.call_tool("get_object_by_link", payload)
+    return result if isinstance(result, str) else _dump(result)
+
+
+async def _link_of_object(client: OnecClient, args: GetLinkOfObjectArgs, ctx: ToolContext) -> str:  # noqa: ARG001
+    payload = {k: v for k, v in args.model_dump().items() if v is not None}
+    result = await client.call_tool("get_link_of_object", payload)
+    return result if isinstance(result, str) else _dump(result)
+
+
+async def _find_refs(client: OnecClient, args: FindReferencesToObjectArgs, ctx: ToolContext) -> str:  # noqa: ARG001
+    payload = {k: v for k, v in args.model_dump().items() if v is not None}
+    result = await client.call_tool("find_references_to_object", payload)
+    return result if isinstance(result, str) else _dump(result)
+
+
+async def _access_rights(client: OnecClient, args: GetAccessRightsArgs, ctx: ToolContext) -> str:  # noqa: ARG001
+    payload = {k: v for k, v in args.model_dump().items() if v is not None}
+    result = await client.call_tool("get_access_rights", payload)
+    return result if isinstance(result, str) else _dump(result)
+
+
 async def _meta(client: OnecClient, tool_name: str, args: MetadataListArgs | MetadataStructureArgs) -> str:
     # Passthrough к одноимённым инструментам ядра 1c_mcp; None не шлём.
     payload = {k: v for k, v in args.model_dump().items() if v is not None}
@@ -170,6 +198,18 @@ def build_onec_tools(client: OnecClient) -> list[ToolDefinition]:
 
     async def event_log_handler(args: Any, ctx: ToolContext) -> str:
         return await _event_log(client, args, ctx)
+
+    async def object_by_link_handler(args: Any, ctx: ToolContext) -> str:
+        return await _object_by_link(client, args, ctx)
+
+    async def link_of_object_handler(args: Any, ctx: ToolContext) -> str:
+        return await _link_of_object(client, args, ctx)
+
+    async def find_refs_handler(args: Any, ctx: ToolContext) -> str:
+        return await _find_refs(client, args, ctx)
+
+    async def access_rights_handler(args: Any, ctx: ToolContext) -> str:
+        return await _access_rights(client, args, ctx)
 
     return [
         ToolDefinition(
@@ -250,5 +290,29 @@ def build_onec_tools(client: OnecClient) -> list[ToolDefinition]:
             description="Журнал регистрации (feenlace/MIT): фильтр дата/уровень/пользователь, кап 200.",
             args_model=GetEventLogArgs,
             handler=event_log_handler,
+        ),
+        ToolDefinition(
+            name="get_object_by_link",
+            description="Объект по навигационной ссылке (OneBridge/MIT): читает объект по link.",
+            args_model=GetObjectByLinkArgs,
+            handler=object_by_link_handler,
+        ),
+        ToolDefinition(
+            name="get_link_of_object",
+            description="Навигационная ссылка объекта (OneBridge/MIT): возвращает link по ref.",
+            args_model=GetLinkOfObjectArgs,
+            handler=link_of_object_handler,
+        ),
+        ToolDefinition(
+            name="find_references_to_object",
+            description="Ссылки на объект в базе (OneBridge/MIT): поиск всех вхождений ref, кап 200.",
+            args_model=FindReferencesToObjectArgs,
+            handler=find_refs_handler,
+        ),
+        ToolDefinition(
+            name="get_access_rights",
+            description="Права доступа к объектам метаданных (OneBridge/MIT): чтение/запись/админ.",
+            args_model=GetAccessRightsArgs,
+            handler=access_rights_handler,
         ),
     ]

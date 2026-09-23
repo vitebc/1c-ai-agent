@@ -103,3 +103,32 @@ class GetEventLogArgs(BaseModel):
     user: str | None = Field(default=None, description="Подстрока имени пользователя")
     event: str | None = Field(default=None, description="Подстрока имени события")
     limit: int = Field(default=50, le=200)
+
+
+# --- OneBridge (MIT): навигация и права ---
+
+
+class GetObjectByLinkArgs(BaseModel):
+    """Получить объект по навигационной ссылке (OneBridge/MIT)."""
+
+    link: str = Field(min_length=1, description="Навигационная ссылка в формате 1С")
+
+
+class GetLinkOfObjectArgs(BaseModel):
+    """Получить навигационную ссылку объекта по его ссылке (OneBridge/MIT)."""
+
+    ref: str = Field(min_length=1, description="Ссылка на объект (Guid/Идентификатор)")
+
+
+class FindReferencesToObjectArgs(BaseModel):
+    """Найти все ссылки на объект в базе (OneBridge/MIT)."""
+
+    ref: str = Field(min_length=1, description="Ссылка на объект")
+    limit: int = Field(default=50, le=200)
+
+
+class GetAccessRightsArgs(BaseModel):
+    """Права доступа к объектам метаданных (OneBridge/MIT)."""
+
+    objectName: str | None = Field(default=None, description="Имя объекта метаданных (необязательно)")
+    userName: str | None = Field(default=None, description="Имя пользователя/роли (необязательно)")
