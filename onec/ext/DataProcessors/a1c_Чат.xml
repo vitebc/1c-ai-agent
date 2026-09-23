@@ -16,7 +16,7 @@
 			<Synonym>
 				<v8:item>
 					<v8:lang>ru</v8:lang>
-					<v8:content>Чат с ассистентом</v8:content>
+					<v8:content>ИИ ассистент</v8:content>
 				</v8:item>
 			</Synonym>
 			<Comment>Чат-клиент ИИ-агента: форма + HTML-документ, SSE к бэкенду. Открывать через Все функции.</Comment>
