@@ -76,4 +76,5 @@ def make_kb_search(
         "Используй для вопросов про правила, сроки, скидки, процедуры.",
         args_model=KbSearchArgs,
         handler=handler,
+        server="local",
     )

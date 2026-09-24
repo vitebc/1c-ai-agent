@@ -110,4 +110,5 @@ def make_pattern_tool(patterns_dir: Path | str) -> ToolDefinition | None:
         ),
         args_model=PatternArgs,
         handler=handler,
+        server="local",
     )

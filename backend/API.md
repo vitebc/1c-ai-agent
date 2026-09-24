@@ -19,10 +19,10 @@
 
 Ответ `200`:
 ```json
-{"mode": "live", "tools": [{"name": "execute_select", "description": "...", "parameters": {"type": "object", "properties": {"query": {"type": "string"}}}}]}
+{"mode": "live", "tools": [{"name": "execute_select", "server": "default", "description": "...", "parameters": {"type": "object", "properties": {"query": {"type": "string"}}}}]}
 ```
 
-Имена из этого списка — источник правды для поля `tools` в `AGENT.md`.
+Имена из этого списка — источник правды для поля `tools` в `AGENT.md`. Тулзы агрегатора (`AGG_MCP_URL`) — полными именами `server__tool` с тегом `server`; в `AGENT.md` агент выбирает их полем `mcp: [default, search-ka-update, ...]` + именами в `tools`.
 
 ## `GET /agents`
 
@@ -40,6 +40,7 @@
       "title": "Ассистент",
       "description": "общие вопросы по 1С и базе знаний",
       "tools": ["get_stock_balance", "search_knowledge_base"],
+      "mcp": ["default"],
       "skills": ["*"]
     }
   ],

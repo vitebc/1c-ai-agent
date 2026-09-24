@@ -146,8 +146,12 @@ class _GenericArgs(BaseModel):
     model_config = ConfigDict(extra="allow")
 
 
-def _make_generic_tool(
-    client: OnecClient, name: str, description: str, input_schema: dict[str, Any] | None
+def make_generic_tool(
+    client: OnecClient,
+    name: str,
+    description: str,
+    input_schema: dict[str, Any] | None,
+    server: str = "default",
 ) -> ToolDefinition:
     schema = input_schema if isinstance(input_schema, dict) and input_schema else {"type": "object", "properties": {}}
 
@@ -162,6 +166,7 @@ def _make_generic_tool(
         args_model=_GenericArgs,
         handler=handler,
         parameters_schema=schema,
+        server=server,
     )
 
 

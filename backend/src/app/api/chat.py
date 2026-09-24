@@ -31,7 +31,7 @@ from app.db.models import ChatSession, Message, User
 from app.db.session import SessionFactory
 from app.llm import ChatLLM, OpenAICompatibleLLM
 from app.llm.client import build_user_content
-from app.onec import McpOnecClient, build_onec_tools
+from app.onec import McpOnecClient, build_agg_tools, build_onec_tools, fetch_agg_tools, make_generic_tool
 from app.patterns import make_pattern_tool
 from app.rag import build_embeddings, make_kb_search
 from app.skills import Skill, SkillRegistry
@@ -114,15 +114,52 @@ async def get_registry() -> ToolRegistry:
             name = pt.get("name")
             if not isinstance(name, str) or not name or name in known_names:
                 continue
+            description = pt.get("description")
+            schema = pt.get("inputSchema")
             generics.append(
-                __import__("app.onec.live", fromlist=["_make_generic_tool"])._make_generic_tool(
-                    client, name, pt.get("description") or "", pt.get("inputSchema")
+                make_generic_tool(
+                    client,
+                    name,
+                    description if isinstance(description, str) else "",
+                    schema if isinstance(schema, dict) else None,
                 )
             )
-        return ToolRegistry(known + generics + extra)
+            known_names.add(name)
+        agg_tools: list[ToolDefinition] = []
+        if settings.agg_mcp_url.strip():
+            try:
+                agg_client = McpOnecClient(settings.agg_mcp_url, token=settings.agg_mcp_token)
+                raw = await fetch_agg_tools(agg_client, settings.agg_mcp_url, settings.agg_mcp_cache_ttl)
+                for tool in build_agg_tools(agg_client, raw):
+                    if tool.name in known_names:
+                        continue
+                    known_names.add(tool.name)
+                    agg_tools.append(tool)
+            except Exception as e:  # noqa: BLE001 — агрегатор упал: чат живёт на default-тулзах
+                log.warning("агрегатор MCP недоступен, работаем без его тулзов: %s", e)
+        return ToolRegistry(known + generics + agg_tools + extra)
     if settings.onec_mode != "mock":
         raise ValueError(f"ONEC_MODE: жди 'mock' или 'live', получено {settings.onec_mode!r}")
     return ToolRegistry(MOCK_ONEC_TOOLS + extra)
+
+
+def scope_registry_for_agent(registry: ToolRegistry, agent: Agent) -> tuple[ToolRegistry, list[str]]:
+    """Фильтр реестра под агента: сервер тулзы обязан быть в agent.mcp_servers
+    (локальные server="local" — всегда), имя — в agent.tools.
+
+    Возвращает (урезанный реестр, список отброшенных с причинами).
+    """
+    scoped: list[str] = []
+    rejected: list[str] = []
+    for t in agent.tools:
+        td = registry.get(t)
+        if td is None:
+            rejected.append(f"{t} (нет в реестре)")
+        elif td.server != "local" and td.server not in agent.mcp_servers:
+            rejected.append(f"{t} (сервер {td.server} не в mcp агента {sorted(agent.mcp_servers)})")
+        else:
+            scoped.append(t)
+    return registry.subset(scoped), rejected
 
 
 async def get_skill_registry() -> SkillRegistry:
@@ -148,11 +185,12 @@ async def list_tools(registry: ToolRegistry = Depends(get_registry)) -> JSONResp
             "mode": settings.onec_mode,
             "tools": [
                 {
-                    "name": s["function"]["name"],
-                    "description": s["function"]["description"],
-                    "parameters": s["function"]["parameters"],
+                    "name": t.name,
+                    "server": t.server,
+                    "description": t.description,
+                    "parameters": t.openai_schema["function"]["parameters"],
                 }
-                for s in registry.schemas()
+                for t in registry.tools
             ],
         }
     )
@@ -169,6 +207,7 @@ async def list_agents(agents: AgentRegistry = Depends(get_agent_registry)) -> JS
                     "name": a.name,
                     "title": a.title,
                     "description": a.description,
+                    "mcp": list(a.mcp_servers),
                     "tools": list(a.tools),
                     "skills": list(a.skills),
                 }
@@ -338,10 +377,9 @@ async def chat(
             chat_session.skill_name = skill.name
         else:
             chat_session.skill_name = None
-        missing = [t for t in agent_spec.tools if t not in registry.names]
-        if missing:
-            log.warning("агент %s ссылается на неизвестные инструменты: %s", agent_spec.name, missing)
-        registry = registry.subset(agent_spec.tools)
+        registry, rejected = scope_registry_for_agent(registry, agent_spec)
+        if rejected:
+            log.warning("агент %s: отброшены инструменты: %s", agent_spec.name, rejected)
         if skill is not None:
             missing = [t for t in skill.tools if t not in registry.names]
             if missing:

@@ -42,6 +42,13 @@ class Settings(BaseSettings):
     onec_mode: str = "mock"
     onec_token: str | None = None
 
+    # Агрегирующий MCP-сервер (подсерверы server__tool, напр. search-ka-update, rlm).
+    # Пусто — отключён. Агент выбирает подсерверы полем mcp в AGENT.md.
+    agg_mcp_url: str = ""
+    agg_mcp_token: str | None = None
+    # TTL кэша tools/list агрегатора, сек (ответ тяжёлый: 100+ тулзов).
+    agg_mcp_cache_ttl: int = 300
+
     # Рантайм-скилы чат-агента (backend/skills/*/SKILL.md). Перечитываются на каждый запрос.
     skills_dir: str = str(Path(__file__).resolve().parent.parent.parent / "skills")
     # Рантайм-агенты (backend/agents/*/AGENT.md). Перечитываются на каждый запрос.

@@ -10,6 +10,7 @@ import logging
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 from app.frontmatter import FrontmatterError, parse_frontmatter
 
@@ -32,7 +33,10 @@ class Agent:
     description: str
     tools: tuple[str, ...]
     skills: tuple[str, ...]  # ("*",) = все скилы
-    mcp: str = "default"  # резерв фазы-1: один MCP-сервер
+    # Источники инструментов: "default" (прокси 1С) + имена подсерверов
+    # агрегатора (напр. "search-ka-update", "rlm"). Локальные тулзы
+    # (server="local": БЗ, паттерны) доступны всегда, вне отбора.
+    mcp_servers: tuple[str, ...] = ("default",)
     model: str = ""  # опциональный оверрайд settings.llm_model; пусто = из конфига
     max_rounds: int | None = None  # опциональный оверрайд settings.agent_max_rounds
     prompt: str = ""
@@ -71,9 +75,18 @@ def parse_agent_file(path: Path) -> Agent:
     skills = meta.get("skills")
     if not isinstance(skills, list) or any(not isinstance(s, str) or not s for s in skills):
         raise AgentFormatError(f'{path}: нужно skills: [] или [a, b] (все — ["*"])')
-    mcp = meta.get("mcp", "default")
-    if not isinstance(mcp, str) or not mcp.strip():
-        raise AgentFormatError(f"{path}: нужен непустой mcp, получено {mcp!r}")
+    raw_mcp: Any = meta.get("mcp", "default")
+    if isinstance(raw_mcp, str):
+        raw_mcp = [raw_mcp]
+    if (
+        not isinstance(raw_mcp, list)
+        or not raw_mcp
+        or any(not isinstance(m, str) or not m.strip() or not _NAME_RE.match(m.strip()) for m in raw_mcp)
+    ):
+        raise AgentFormatError(
+            f"{path}: нужен mcp: default или [default, search-ka-update], получено {meta.get('mcp')!r}"
+        )
+    mcp_servers = tuple(m.strip() for m in raw_mcp)
     model = meta.get("model", "")
     if model is None:
         model = ""
@@ -94,7 +107,7 @@ def parse_agent_file(path: Path) -> Agent:
         description=description.strip(),
         tools=tuple(tools),
         skills=tuple(skills),
-        mcp=mcp.strip(),
+        mcp_servers=mcp_servers,
         model=model.strip(),
         max_rounds=max_rounds,
         prompt=prompt,

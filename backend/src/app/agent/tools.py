@@ -38,6 +38,10 @@ class ToolDefinition:
     # Для динамических MCP-тулзов (см. app.onec.live:make_generic_tool) — прямой
     # JSON Schema из прокси. Если задан, уходит модели вместо model_json_schema().
     parameters_schema: dict[str, Any] | None = None
+    # Источник инструмента: "default" (прокси 1С), "local" (БЗ/паттерны — вне
+    # отбора по mcp, доступны всегда) или имя подсервера агрегатора
+    # (напр. "search-ka-update"). Агент фильтруется по Agent.mcp_servers.
+    server: str = "default"
 
     @property
     def openai_schema(self) -> dict[str, Any]:
@@ -73,3 +77,7 @@ class ToolRegistry:
     @property
     def names(self) -> list[str]:
         return sorted(self._tools)
+
+    @property
+    def tools(self) -> list[ToolDefinition]:
+        return list(self._tools.values())
