@@ -72,6 +72,10 @@
 			<DataProcessor>a1c_ИнструментКонтрагенты</DataProcessor>
 			<DataProcessor>a1c_ИнструментОтчеты</DataProcessor>
 			<DataProcessor>a1c_ИнструментЗапросы</DataProcessor>
+			<DataProcessor>a1c_ИнструментДерево</DataProcessor>
+			<DataProcessor>a1c_ИнструментЖурнал</DataProcessor>
+			<DataProcessor>a1c_ИнструментНавигация</DataProcessor>
+			<DataProcessor>a1c_ИнструментПрава</DataProcessor>
 			<DataProcessor>a1c_Чат</DataProcessor>
 		</ChildObjects>
 	</Configuration>
