@@ -75,6 +75,10 @@ class GetMetadataTreeArgs(BaseModel):
     typeFilter: str | None = Field(default=None, description="Фильтр по типу: Catalogs, Documents...")
 
 
+class GetConfigurationInfoArgs(BaseModel):
+    """Информация о конфигурации (без параметров)."""
+
+
 class GetObjectStructureArgs(BaseModel):
     """Структура одного объекта (синоним get_metadata_structure, имя как в дереве)."""
 

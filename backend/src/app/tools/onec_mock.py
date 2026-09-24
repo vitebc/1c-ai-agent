@@ -15,6 +15,7 @@ from app.onec.schemas import (
     ExecuteQueryArgs,
     FindReferencesToObjectArgs,
     GetAccessRightsArgs,
+    GetConfigurationInfoArgs,
     GetEventLogArgs,
     GetLinkOfObjectArgs,
     GetMetadataTreeArgs,
@@ -121,6 +122,18 @@ async def get_object_structure(args: GetObjectStructureArgs, ctx: ToolContext) -
     return _dump({"name": args.name, "objectType": args.objectType or "Unknown", "fields": ["Ссылка", "Наименование"]})
 
 
+async def get_configuration_info(args: GetConfigurationInfoArgs, ctx: ToolContext) -> str:  # noqa: ARG001
+    return _dump(
+        {
+            "name": "MockBase",
+            "version": "1.0.0.1",
+            "vendor": "MockVendor",
+            "platform_version": "8.3.20.1",
+            "mode": "file",
+        }
+    )
+
+
 async def execute_query(args: ExecuteQueryArgs, ctx: ToolContext) -> str:  # noqa: ARG001
     return _dump({"rows": [], "truncated": False, "hint": f"мок execute_query: {args.query[:60]}"})
 
@@ -181,6 +194,12 @@ MOCK_ONEC_TOOLS = [
         description="Дерево метаданных (feenlace/MIT): типы/объекты/подсистемы.",
         args_model=GetMetadataTreeArgs,
         handler=get_metadata_tree,
+    ),
+    ToolDefinition(
+        name="get_configuration_info",
+        description="Информация о конфигурации (feenlace/MIT): имя, версия, поставщик, платформа, режим ИБ.",
+        args_model=GetConfigurationInfoArgs,
+        handler=get_configuration_info,
     ),
     ToolDefinition(
         name="get_object_structure",

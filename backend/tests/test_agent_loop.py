@@ -106,3 +106,4 @@ def test_registry_schemas() -> None:
     assert reg.get("nope") is None
     assert "get_metadata_tree" in reg.names
     assert "execute_query" in reg.names
+    assert "get_configuration_info" in reg.names

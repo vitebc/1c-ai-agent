@@ -20,6 +20,7 @@ from app.onec.schemas import (
     ExecuteSelectArgs,
     FindReferencesToObjectArgs,
     GetAccessRightsArgs,
+    GetConfigurationInfoArgs,
     GetEventLogArgs,
     GetLinkOfObjectArgs,
     GetMetadataTreeArgs,
@@ -94,6 +95,11 @@ async def _execute_query(client: OnecClient, args: ExecuteQueryArgs, ctx: ToolCo
 async def _tree(client: OnecClient, args: GetMetadataTreeArgs, ctx: ToolContext) -> str:  # noqa: ARG001
     payload = {k: v for k, v in args.model_dump().items() if v is not None}
     result = await client.call_tool("get_metadata_tree", payload)
+    return result if isinstance(result, str) else _dump(result)
+
+
+async def _configuration_info(client: OnecClient, args: GetConfigurationInfoArgs, ctx: ToolContext) -> str:  # noqa: ARG001
+    result = await client.call_tool("get_configuration_info", {})
     return result if isinstance(result, str) else _dump(result)
 
 
@@ -195,6 +201,9 @@ def build_onec_tools(client: OnecClient) -> list[ToolDefinition]:
     async def tree_handler(args: Any, ctx: ToolContext) -> str:
         return await _tree(client, args, ctx)
 
+    async def configuration_info_handler(args: Any, ctx: ToolContext) -> str:
+        return await _configuration_info(client, args, ctx)
+
     async def object_handler(args: Any, ctx: ToolContext) -> str:
         return await _object_structure(client, args, ctx)
 
@@ -277,6 +286,15 @@ def build_onec_tools(client: OnecClient) -> list[ToolDefinition]:
             description="Дерево метаданных (feenlace/MIT): типы/объекты/подсистемы, только чтение.",
             args_model=GetMetadataTreeArgs,
             handler=tree_handler,
+        ),
+        ToolDefinition(
+            name="get_configuration_info",
+            description=(
+                "Информация о конфигурации (feenlace/MIT): имя, версия, поставщик, "
+                "версия платформы, режим ИБ. Только чтение."
+            ),
+            args_model=GetConfigurationInfoArgs,
+            handler=configuration_info_handler,
         ),
         ToolDefinition(
             name="get_object_structure",
