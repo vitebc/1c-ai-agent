@@ -28,6 +28,9 @@ class Settings(BaseSettings):
 
     # Агентская петля.
     agent_max_rounds: int = 15
+    # Предохранитель: стоп после N ошибок инструментов подряд (0 — выкл).
+    # Спасает от долбёжки упавшей 1С: 5 одинаковых 500 подряд вместо 15 раундов.
+    agent_max_consecutive_errors: int = 3
 
     database_url: str = "postgresql+asyncpg://agent:agent@localhost:5432/agentdb"
 

@@ -107,3 +107,70 @@ def test_registry_schemas() -> None:
     assert "get_metadata_tree" in reg.names
     assert "execute_query" in reg.names
     assert "get_configuration_info" in reg.names
+
+
+def _run_with_breaker(llm: FakeLLM, max_consecutive_errors: int, max_rounds: int = 15) -> AgentResult:
+    return asyncio.run(
+        run_agent(
+            llm=llm,
+            registry=ToolRegistry(MOCK_ONEC_TOOLS),
+            user_message="тест",
+            max_rounds=max_rounds,
+            max_consecutive_errors=max_consecutive_errors,
+        )
+    )
+
+
+def _fail_script(n: int, name: str = "teleport") -> list[AssistantMessage]:
+    # Неизвестный инструмент -> каждый вызов заканчивается ERROR-фидбэком.
+    return [
+        AssistantMessage(content=None, tool_calls=[ToolCall(id=f"c{i}", name=name, arguments="{}")]) for i in range(n)
+    ]
+
+
+def test_circuit_breaker_stops_death_spiral() -> None:
+    llm = FakeLLM(_fail_script(10))
+    res = _run_with_breaker(llm, max_consecutive_errors=3)
+    assert res.tool_calls == ["teleport"] * 3
+    assert res.tool_errors == 3
+    assert "1С" in res.answer and "подключения/сервера" in res.answer
+
+
+def test_circuit_breaker_resets_on_success() -> None:
+    llm = FakeLLM(
+        _fail_script(2)
+        + [
+            AssistantMessage(
+                content=None,
+                tool_calls=[ToolCall(id="c2", name="get_stock_balance", arguments='{"sku": "стул"}')],
+            ),
+            AssistantMessage(content="Готово."),
+        ]
+    )
+    res = _run_with_breaker(llm, max_consecutive_errors=3)
+    assert res.answer == "Готово."
+    assert res.tool_errors == 2  # две ошибки подряд — терпимо, предохранитель не сработал
+
+
+def test_circuit_breaker_disabled() -> None:
+    llm = FakeLLM(_fail_script(5) + [AssistantMessage(content="Финал.")])
+    res = _run_with_breaker(llm, max_consecutive_errors=0, max_rounds=10)
+    assert res.answer == "Финал."
+    assert res.tool_errors == 5
+
+
+def test_quoted_error_counts_as_error() -> None:
+    # 1С иногда возвращает ошибку уже JSON-закодированной: '"Ошибка выполнения...'.
+    from app.agent.tools import ToolDefinition
+    from app.onec.schemas import StockArgs
+
+    async def quoted_fail(args: StockArgs, ctx: object) -> str:
+        return '"Ошибка выполнения инструмента: Server error 500"'
+
+    reg = ToolRegistry(
+        [ToolDefinition(name="boom", description="падающий тул", args_model=StockArgs, handler=quoted_fail)]
+    )
+    llm = FakeLLM(_fail_script(10, name="boom"))
+    res = asyncio.run(run_agent(llm=llm, registry=reg, user_message="тест", max_rounds=15, max_consecutive_errors=2))
+    assert res.tool_calls == ["boom"] * 2
+    assert res.tool_errors == 2

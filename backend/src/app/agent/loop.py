@@ -5,7 +5,9 @@
 - аргументы валидируются pydantic-схемой инструмента;
 - ошибка инструмента возвращается модели как tool result — она чинит параметры
   и повторяет вызов;
-- неизвестный инструмент — тоже ошибка в контекст, а не падение.
+- неизвестный инструмент — тоже ошибка в контекст, а не падение;
+- предохранитель: N ошибок подряд (max_consecutive_errors, 0 — выкл) останавливают
+  петлю с честным ответом про недоступность 1С вместо долбёжки упавшего шлюза.
 """
 
 from __future__ import annotations
@@ -106,6 +108,7 @@ async def run_agent(
     skill_name: str = "",
     base_system: str = SYSTEM_PROMPT,
     agent_name: str = "",
+    max_consecutive_errors: int = 3,
 ) -> AgentResult:
     system = base_system + ("\n\n" + extra_system.strip() if extra_system.strip() else "")
     messages: list[dict[str, Any]] = [
@@ -117,6 +120,8 @@ async def run_agent(
     ctx = ToolContext(user_id=user_id, access_profile=access_profile, base_name=base_name, agent_name=agent_name)
     called: list[str] = []
     errors = 0
+    consec_errors = 0
+    last_error = ""
     prompt_tokens = 0
     completion_tokens = 0
     started = time.monotonic()
@@ -156,8 +161,13 @@ async def run_agent(
         for call in resp.tool_calls:
             called.append(call.name)
             feedback = await _execute_call(registry, ctx, call.name, call.arguments)
-            if feedback.startswith(("ERROR", "Ошибка выполнения", "Ошибка:")):
+            # Нормализуем кавычки: 1С иногда возвращает ошибку уже JSON-закодированной ("Ошибка...").
+            if feedback.lstrip(' \t"\u201c').startswith(("ERROR", "Ошибка выполнения", "Ошибка:")):
                 errors += 1
+                consec_errors += 1
+                last_error = feedback
+            else:
+                consec_errors = 0
             log.info(
                 "user=%s round=%d tool=%s args=%.300s -> %.300s",
                 user_id,
@@ -167,6 +177,29 @@ async def run_agent(
                 feedback,
             )
             messages.append({"role": "tool", "tool_call_id": call.id, "content": feedback})
+            if 0 < max_consecutive_errors <= consec_errors:
+                log.warning(
+                    "user=%s base=%s agent=%s skill=%s circuit breaker: %d ошибок подряд, стоп: %s",
+                    user_id,
+                    base,
+                    agent,
+                    skill,
+                    consec_errors,
+                    _preview(last_error),
+                )
+                return AgentResult(
+                    answer=(
+                        "Не получается обратиться к базе 1С — инструменты несколько раз подряд "
+                        f"вернули ошибку (последняя: {_preview(last_error, 300)}). "
+                        "Это проблема на стороне подключения/сервера, а не формулировки запроса: "
+                        "проверьте доступность базы и MCP-шлюза, затем повторите вопрос."
+                    ),
+                    rounds=len(called),
+                    tool_calls=called,
+                    tool_errors=errors,
+                    prompt_tokens=prompt_tokens,
+                    completion_tokens=completion_tokens,
+                )
 
     log.warning(
         "user=%s base=%s agent=%s skill=%s rounds exhausted: tools=%s errors=%d elapsed=%.1fs",

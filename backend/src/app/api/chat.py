@@ -451,6 +451,7 @@ async def chat(
                     skill_name=skill_name,
                     agent_name=agent_name,
                     base_system=base_system,
+                    max_consecutive_errors=settings.agent_max_consecutive_errors,
                 )
                 async with SessionFactory() as s:
                     s.add(Message(session_id=session_id, role="assistant", content=result.answer))
@@ -479,6 +480,7 @@ async def chat(
             skill_name=skill_name,
             agent_name=agent_name,
             base_system=base_system,
+            max_consecutive_errors=settings.agent_max_consecutive_errors,
         )
     except Exception as e:  # noqa: BLE001 — показываем ошибку в чате, а не 500
         # 1С ждёт SSE, поэтому отдаём ошибку как обычный answer, чтобы форма показала текст а не "HTTP 500"
