@@ -3,11 +3,11 @@
 	<DataProcessor uuid="dfc4cd13-0730-42f7-af65-287d88efe103">
 		<InternalInfo>
 			<xr:GeneratedType name="DataProcessorObject.a1c_ИнструментПрава" category="Object">
-				<xr:TypeId>73b7e7f8-13a6-4c07-855d-9ae4f3a5e2b0</xr:TypeId>
+				<xr:TypeId>8bb5ce39-6d6b-43b4-8853-4e1146709114</xr:TypeId>
 				<xr:ValueId>e1c67e1e-52f9-4b3c-9174-d4a057582570</xr:ValueId>
 			</xr:GeneratedType>
 			<xr:GeneratedType name="DataProcessorManager.a1c_ИнструментПрава" category="Manager">
-				<xr:TypeId>474a62d3-9370-42e5-acf3-b4503aaa83bf</xr:TypeId>
+				<xr:TypeId>925ace0c-ade7-455a-9383-30022f2ba214</xr:TypeId>
 				<xr:ValueId>a30ae27d-5a87-476a-9809-fe845bb0ed42</xr:ValueId>
 			</xr:GeneratedType>
 		</InternalInfo>
