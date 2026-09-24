@@ -36,19 +36,31 @@ function Invoke-Mcp {
     try {
         $resp = Invoke-RestMethod -Uri $script:uri -Method Post `
             -ContentType "application/json" -Credential $script:cred -Body $body `
-            -ErrorAction Stop
+            -TimeoutSec 30 -ErrorAction Stop
     } catch {
         Write-Host "<-- ОШИБКА HTTP-транспорта:" -ForegroundColor Red
-        try {
-            $stream = $_.Exception.Response.GetResponseStream()
-            if ($stream) {
-                $reader = New-Object System.IO.StreamReader($stream)
-                Write-Host $reader.ReadToEnd()
-            } else {
-                Write-Host $_.Exception.Message
+        Write-Host ("Тип исключения: " + $_.Exception.GetType().FullName)
+        Write-Host ("Сообщение: " + $_.Exception.Message)
+        $httpResp = $_.Exception.Response
+        if ($httpResp) {
+            try {
+                Write-Host ("HTTP-статус: " + [int]$httpResp.StatusCode + " " + $httpResp.StatusDescription)
+            } catch {
+                Write-Host "(статус прочитать не удалось)"
             }
-        } catch {
-            Write-Host $_.Exception.Message
+            try {
+                $sr = New-Object System.IO.StreamReader($httpResp.GetResponseStream())
+                $txt = $sr.ReadToEnd()
+                if ([string]::IsNullOrEmpty($txt)) {
+                    Write-Host "(тело ответа пустое)"
+                } else {
+                    Write-Host $txt
+                }
+            } catch {
+                Write-Host ("(тело прочитать не удалось: " + $_.Exception.Message + ")")
+            }
+        } else {
+            Write-Host "(HTTP-ответа нет: обрыв соединения, таймаут 30с или DNS)"
         }
         return
     }
