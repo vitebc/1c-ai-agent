@@ -6,3 +6,6 @@
 - `vozvraty.md`, `sklad.md`, `otchety.md` — `all` (видны всем);
 - `skidki.md`, `kontragenty.md` — `sales`;
 - `debitorka.md` — `accounting`.
+
+Изоляция по агентам (`agent_name` при инжесте, `NULL` = общий документ,
+виден всем агентам): у синтетики не задана — вся видна всем агентам.

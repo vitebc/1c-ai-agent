@@ -22,7 +22,7 @@
 {"mode": "live", "tools": [{"name": "execute_select", "server": "default", "description": "...", "parameters": {"type": "object", "properties": {"query": {"type": "string"}}}}]}
 ```
 
-Имена из этого списка — источник правды для поля `tools` в `AGENT.md`. Тулзы агрегатора (`AGG_MCP_URL`) — полными именами `server__tool` с тегом `server`; в `AGENT.md` агент выбирает их полем `mcp: [default, search-ka-update, ...]` + именами в `tools`.
+Имена из этого списка — источник правды для поля `tools` в `AGENT.md`. Тулзы агрегатора (`AGG_MCP_URL`) — полными именами `server__tool` с тегом `server`; в `AGENT.md` агент выбирает их полем `mcp: [default, search-ka-update, ...]` + именами в `tools`. Недоступный агрегатор из списка тихо выпадает (warning в лог, чат живёт на остальных тулзах); список агрегатора кешируется (`AGG_MCP_CACHE_TTL`, дефолт 300с).
 
 ## `GET /agents`
 
@@ -101,6 +101,9 @@
 
 Ошибки: `404` — `session not found`, `agent not found`, `skill not found`,
 `skill not available for agent`; `413` — больше 10 вложений.
+Предохранитель петли (`agent_max_consecutive_errors`, дефолт 3): после N ошибок
+инструментов подряд ответом приходит честное «не могу обратиться к базе 1С»
+вместо долбёжки упавшего шлюза.
 
 ### Режим SSE (по умолчанию)
 

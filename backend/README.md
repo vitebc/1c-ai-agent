@@ -59,7 +59,7 @@ uv run python scripts/smoke_tools.py --replay tests/fixtures/ka2_pilot.json
 ## RAG-скелет (шаг 2)
 
 ```bash
-uv run alembic upgrade head   # таблицы users/sessions/messages/documents/chunks
+uv run alembic upgrade head   # users/sessions(+base/skill/agent)/messages/documents(+agent)/chunks
 ```
 
 Инжест синтетики (`synth_docs/`, профили прав — в `synth_docs/README.md`):
@@ -89,14 +89,26 @@ EOF
 
 Чат: `POST /chat {message, session_id?, user_id?, agent?, skill?}` — SSE (`tool`/`answer`/`done`),
 история пишется в postgres. Профиль прав пользователя берётся из `users`
-(`access_profile`, дефолт `all`).
+(`access_profile`, дефолт `all`). В `done`: `session_id/agent/skill/model/elapsed_s`,
+токены (`prompt/completion/total`), `rounds/tool_errors`.
+
+Петля: `agent_max_rounds` (дефолт 15, оверрайд `max_rounds` в `AGENT.md`)
++ предохранитель `agent_max_consecutive_errors` (дефолт 3 — стоп с честным
+ответом вместо долбёжки упавшей 1С, `0` — выкл).
 
 Агенты: `agents/<name>/AGENT.md` (формат — `agents/AGENT.md`): системный промпт
 (ЗАМЕНЯЕТ базовый), фильтр `tools`, разрешённые `skills`, опциональный оверрайд
-`model`. Выбор — явный `agent` из дропдауна 1С (дефолт `assistant`), залипает
-в `sessions.agent_name`. `GET /agents` отдаёт список для формы. Новый агент —
-новый файл, без рестарта. RAG изолирован по агенту (`documents.agent_name`,
-NULL = общий).
+`model`, источники инструментов `mcp` (`default` + подсерверы агрегатора,
+напр. `[default, search-ka-update, rlm]`). Выбор — явный `agent` из дропдауна 1С
+(дефолт `assistant`), залипает в `sessions.agent_name`. `GET /agents` отдаёт список
+для формы. Новый агент — новый файл, без рестарта. RAG изолирован по агенту
+(`documents.agent_name`, NULL = общий).
+
+Инструменты: `GET /tools` — живой реестр (имя/`server`/схема). Пулы: прокси 1С
+(`default`: курируемые + динамические `a1c_Инструмент*` из `tools/list` прокси),
+агрегатор (`AGG_MCP_URL`, тулзы `server__tool`, TTL-кэш `AGG_MCP_CACHE_TTL`,
+падение агрегатора чат не роняет) и локальные (`search_knowledge_base`,
+`get_pattern` — вне отбора по `mcp`).
 
 Скилы: `skills/<name>/SKILL.md` (формат — `skills/SKILL.md`). Бэкенд фильтрует
 реестр по `tools` скила и дописывает его промпт; выбор — всегда авто-матчинг

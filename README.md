@@ -6,9 +6,10 @@
 
 ## Структура
 
-- `backend/` — FastAPI-сервис (agent loop, RAG, MCP-клиент к 1С). Python 3.12 + uv.
+- `backend/` — FastAPI-сервис (agent loop, RAG, MCP-клиент к 1С). Python 3.12 + uv. Рантайм-конфиги кодом не правятся: `agents/<name>/AGENT.md`, `skills/<name>/SKILL.md`, `patterns/<name>.md`.
 - `infra/` — конфиги инфраструктуры (init-скрипты postgres и т.п.).
-- `onec/` — сторона 1С: инструкции по подключению тестовой базы, позже — XML-исходники нашего CFE-расширения.
+- `onec/` — сторона 1С: XML-исходники CFE-расширения `A1C_Инструменты` (`ext/`), инструкции (`README.md`, `DEPLOY.md`, `CHAT.md`, `1c_mcp.md`), смоуки (`smoke_check.py`, `smoke_check_rpc.ps1`, `test_rpc.ps1`).
+- `data/` — локальные референсные выгрузки (OneBridge, feenlace) и прочие данные. В git не коммитится (см. `.gitignore`).
 - `.agents/skills/` — скилы 1С-разработки (cc-1c-skills), источник в `skills-lock.json`.
 - `docker-compose.yml` — dev-контур на VPS (postgres всегда; `tei` — профиль `rag`; `mcp-proxy` — профиль `onec`).
 
@@ -27,8 +28,8 @@ docker compose logs -f backend
 ```bash
 cd backend && uv sync
 uv run pytest
-uv run ruff check src tests && uv run ruff format --check src tests
-uv run mypy src
+uv run ruff check src tests scripts && uv run ruff format --check src tests scripts
+uv run mypy src tests scripts/smoke_tools.py
 ```
 
 Линтеры также гоняются pre-commit: `pre-commit install && pre-commit run --all-files`.
