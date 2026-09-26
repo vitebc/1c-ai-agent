@@ -44,6 +44,12 @@ class Settings(BaseSettings):
     # Live требует доступного прокси; токен — только при MCP_AUTH_MODE=oauth2.
     onec_mode: str = "mock"
     onec_token: str | None = None
+    # Сервисные креды для ПРЯМЫХ вызовов 1С (JsonRpcOnecClient): единые для всех
+    # баз. Форма 1С присылает base_url (http://srvr/Ref), бэкенд ходит в
+    # {base_url}/hs/mcp/rpc напрямую, минуя прокси. Пока — сервисный пользователь,
+    # per-user RLS следующим шагом.
+    onec_username: str = "agent"
+    onec_password: str | None = None
 
     # Агрегирующий MCP-сервер (подсерверы server__tool, напр. search-ka-update, rlm).
     # Пусто — отключён. Агент выбирает подсерверы полем mcp в AGENT.md.

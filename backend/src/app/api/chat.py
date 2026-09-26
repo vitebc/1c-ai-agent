@@ -31,7 +31,16 @@ from app.db.models import ChatSession, Message, User
 from app.db.session import SessionFactory
 from app.llm import ChatLLM, OpenAICompatibleLLM
 from app.llm.client import build_user_content
-from app.onec import McpOnecClient, build_agg_tools, build_onec_tools, fetch_agg_tools, make_generic_tool
+from app.onec import (
+    JsonRpcOnecClient,
+    McpOnecClient,
+    OnecClient,
+    build_agg_tools,
+    build_onec_tools,
+    fetch_agg_tools,
+    make_generic_tool,
+    validate_base_url,
+)
 from app.patterns import make_pattern_tool
 from app.rag import build_embeddings, make_kb_search
 from app.skills import Skill, SkillRegistry
@@ -75,6 +84,10 @@ class ChatRequest(BaseModel):
     )
     # Имя ИБ 1С (НРег) для мультибазовости: считает BSL (БСП или разбор строки соединения).
     base_name: str | None = Field(default=None, max_length=128)
+    # Корень публикации базы (http://srvr/Ref из Srvr/Ref строки соединения).
+    # Бэкенд ходит в {base_url}/hs/mcp/rpc напрямую, минуя прокси: вопрос из базы X
+    # отвечает база X. Пусто — штатный путь (mock или прокси по ONEC_MODE).
+    base_url: str | None = Field(default=None, max_length=256)
     # Рантайм-скил (backend/skills/<name>); пусто — авто-матчинг по description.
     skill: str | None = Field(default=None, max_length=64)
     # Рантайм-агент (backend/agents/<name>); пусто — агент по умолчанию.
@@ -96,51 +109,80 @@ async def get_llm() -> ChatLLM:
     )
 
 
+async def _merge_live_registry(client: OnecClient, extra: list[ToolDefinition]) -> ToolRegistry:
+    """Курируемые тулзы + динамика из tools/list базы + тулзы агрегатора + локальные.
+
+    Общая для прокси (McpOnecClient) и прямых вызовов (JsonRpcOnecClient):
+    контракт 1С одинаковый. Недоступность базы на list_tools не роняет чат —
+    отдаём статический набор, ошибки всплывут per-tool и их срежет предохранитель.
+    """
+    known = build_onec_tools(client)
+    known_names = {t.name for t in known} | {t.name for t in extra}
+    proxy_tools: list[dict[str, Any]] = []
+    try:
+        proxy_tools = await client.list_tools()
+    except Exception as e:  # noqa: BLE001 — база недоступна: отдаём статический набор
+        log.warning("не удалось опросить 1С для списка инструментов: %s", e)
+    generics: list[ToolDefinition] = []
+    for pt in proxy_tools:
+        name = pt.get("name")
+        if not isinstance(name, str) or not name or name in known_names:
+            continue
+        description = pt.get("description")
+        schema = pt.get("inputSchema")
+        generics.append(
+            make_generic_tool(
+                client,
+                name,
+                description if isinstance(description, str) else "",
+                schema if isinstance(schema, dict) else None,
+            )
+        )
+        known_names.add(name)
+    agg_tools: list[ToolDefinition] = []
+    if settings.agg_mcp_url.strip():
+        try:
+            agg_client = McpOnecClient(settings.agg_mcp_url, token=settings.agg_mcp_token)
+            raw = await fetch_agg_tools(agg_client, settings.agg_mcp_url, settings.agg_mcp_cache_ttl)
+            for tool in build_agg_tools(agg_client, raw):
+                if tool.name in known_names:
+                    continue
+                known_names.add(tool.name)
+                agg_tools.append(tool)
+        except Exception as e:  # noqa: BLE001 — агрегатор упал: чат живёт на default-тулзах
+            log.warning("агрегатор MCP недоступен, работаем без его тулзов: %s", e)
+    return ToolRegistry(known + generics + agg_tools + extra)
+
+
 async def get_registry() -> ToolRegistry:
     embeddings = build_embeddings(settings.embeddings_provider, settings.tei_base_url)
     pattern_tool = make_pattern_tool(settings.patterns_dir)
     extra = [make_kb_search(SessionFactory, embeddings)] + ([pattern_tool] if pattern_tool else [])
     if settings.onec_mode == "live":
         client = McpOnecClient(settings.onec_mcp_url, token=settings.onec_token)
-        known = build_onec_tools(client)
-        known_names = {t.name for t in known} | {t.name for t in extra}
-        proxy_tools: list[dict[str, Any]] = []
-        try:
-            proxy_tools = await client.list_tools()
-        except Exception as e:  # noqa: BLE001 — прокси недоступен: отдаём статический набор
-            log.warning("не удалось опросить прокси 1С для списка инструментов: %s", e)
-        generics: list[ToolDefinition] = []
-        for pt in proxy_tools:
-            name = pt.get("name")
-            if not isinstance(name, str) or not name or name in known_names:
-                continue
-            description = pt.get("description")
-            schema = pt.get("inputSchema")
-            generics.append(
-                make_generic_tool(
-                    client,
-                    name,
-                    description if isinstance(description, str) else "",
-                    schema if isinstance(schema, dict) else None,
-                )
-            )
-            known_names.add(name)
-        agg_tools: list[ToolDefinition] = []
-        if settings.agg_mcp_url.strip():
-            try:
-                agg_client = McpOnecClient(settings.agg_mcp_url, token=settings.agg_mcp_token)
-                raw = await fetch_agg_tools(agg_client, settings.agg_mcp_url, settings.agg_mcp_cache_ttl)
-                for tool in build_agg_tools(agg_client, raw):
-                    if tool.name in known_names:
-                        continue
-                    known_names.add(tool.name)
-                    agg_tools.append(tool)
-            except Exception as e:  # noqa: BLE001 — агрегатор упал: чат живёт на default-тулзах
-                log.warning("агрегатор MCP недоступен, работаем без его тулзов: %s", e)
-        return ToolRegistry(known + generics + agg_tools + extra)
+        return await _merge_live_registry(client, extra)
     if settings.onec_mode != "mock":
         raise ValueError(f"ONEC_MODE: жди 'mock' или 'live', получено {settings.onec_mode!r}")
     return ToolRegistry(MOCK_ONEC_TOOLS + extra)
+
+
+async def build_registry_for_base_url(base_url: str, client: OnecClient | None = None) -> ToolRegistry:
+    """Реестр под конкретную базу: прямой JSON-RPC в {base_url}/hs/mcp/rpc.
+
+    client — только для тестов (FakeOnecClient); в проде строится JsonRpcOnecClient
+    под сервисными ONEC_USERNAME/ONEC_PASSWORD. Невалидный base_url — ValueError.
+    """
+    embeddings = build_embeddings(settings.embeddings_provider, settings.tei_base_url)
+    pattern_tool = make_pattern_tool(settings.patterns_dir)
+    extra = [make_kb_search(SessionFactory, embeddings)] + ([pattern_tool] if pattern_tool else [])
+    root = validate_base_url(base_url)  # ValueError -> 400 в эндпоинте
+    direct = client or JsonRpcOnecClient(
+        root,
+        username=settings.onec_username,
+        password=settings.onec_password,
+    )
+    log.info("реестр инструментов базы: %s", root)
+    return await _merge_live_registry(direct, extra)
 
 
 def scope_registry_for_agent(registry: ToolRegistry, agent: Agent) -> tuple[ToolRegistry, list[str]]:
@@ -173,16 +215,26 @@ async def get_agent_registry() -> AgentRegistry:
 
 
 @router.get("/tools")
-async def list_tools(registry: ToolRegistry = Depends(get_registry)) -> JSONResponse:  # noqa: B008
+async def list_tools(
+    registry: ToolRegistry = Depends(get_registry),  # noqa: B008
+    base_url: str | None = Query(default=None, max_length=256, description="Реестр конкретной базы: прямой JSON-RPC"),
+) -> JSONResponse:
     """Полный реестр доступных инструментов (динамически: mock/live + локальные).
 
     Источник правды для `AGENT.md: tools:` — бери имена отсюда.
     В live мода прокси опрашивается; динамические тулзы из 1С (a1c_Инструмент*)
     появляются без правки кода бэкенда.
+    С base_url — реестр именно этой базы (прямой вызов, как в POST /chat).
     """
+    if base_url:
+        try:
+            registry = await build_registry_for_base_url(base_url)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e)) from e
     return JSONResponse(
         {
             "mode": settings.onec_mode,
+            "base_url": base_url,
             "tools": [
                 {
                     "name": t.name,
@@ -377,6 +429,13 @@ async def chat(
             chat_session.skill_name = skill.name
         else:
             chat_session.skill_name = None
+        # Вопрос из базы X отвечает база X: прямой JSON-RPC в её публикацию.
+        # Пусто — штатный путь (mock или прокси). Невалидный base_url — 400.
+        if req.base_url:
+            try:
+                registry = await build_registry_for_base_url(req.base_url)
+            except ValueError as e:
+                raise HTTPException(status_code=400, detail=str(e)) from e
         registry, rejected = scope_registry_for_agent(registry, agent_spec)
         if rejected:
             log.warning("агент %s: отброшены инструменты: %s", agent_spec.name, rejected)
