@@ -9,30 +9,50 @@
 	<AutoTitle>false</AutoTitle>
 	<AutoCommandBar name="ФормаКоманднаяПанель" id="-1"/>
 	<Events>
-		<Event name="OnCreateAtServer">ПриСозданииНаСервере</Event>
 		<Event name="BeforeClose">ПередЗакрытием</Event>
+		<Event name="OnCreateAtServer">ПриСозданииНаСервере</Event>
 	</Events>
 	<ChildItems>
-		<InputField name="АдресБэкенда" id="1">
-			<DataPath>АдресБэкенда</DataPath>
-			<Title>
-				<v8:item>
-					<v8:lang>ru</v8:lang>
-					<v8:content>Бэкенд</v8:content>
-				</v8:item>
-			</Title>
-			<InputHint>
-				<v8:item>
-					<v8:lang>ru</v8:lang>
-					<v8:content>http://localhost:8000</v8:content>
-				</v8:item>
-			</InputHint>
-			<ContextMenu name="АдресБэкендаКонтекстноеМеню" id="2"/>
-			<ExtendedTooltip name="АдресБэкендаРасширеннаяПодсказка" id="3"/>
-			<Events>
-				<Event name="OnChange">АдресБэкендаПриИзменении</Event>
-			</Events>
-		</InputField>
+		<UsualGroup name="Группа1" id="95">
+			<ExtendedTooltip name="Группа1РасширеннаяПодсказка" id="96"/>
+			<ChildItems>
+				<InputField name="Агент" id="92">
+					<DataPath>Агент</DataPath>
+					<Title>
+						<v8:item>
+							<v8:lang>ru</v8:lang>
+							<v8:content>Агент</v8:content>
+						</v8:item>
+					</Title>
+					<DropListButton>true</DropListButton>
+					<ContextMenu name="АгентКонтекстноеМеню" id="93"/>
+					<ExtendedTooltip name="АгентРасширеннаяПодсказка" id="94"/>
+					<Events>
+						<Event name="OnChange">АгентПриИзменении</Event>
+					</Events>
+				</InputField>
+				<InputField name="АдресБэкенда" id="1">
+					<DataPath>АдресБэкенда</DataPath>
+					<Title>
+						<v8:item>
+							<v8:lang>ru</v8:lang>
+							<v8:content>Бэкенд</v8:content>
+						</v8:item>
+					</Title>
+					<InputHint>
+						<v8:item>
+							<v8:lang>ru</v8:lang>
+							<v8:content>http://localhost:8000</v8:content>
+						</v8:item>
+					</InputHint>
+					<ContextMenu name="АдресБэкендаКонтекстноеМеню" id="2"/>
+					<ExtendedTooltip name="АдресБэкендаРасширеннаяПодсказка" id="3"/>
+					<Events>
+						<Event name="OnChange">АдресБэкендаПриИзменении</Event>
+					</Events>
+				</InputField>
+			</ChildItems>
+		</UsualGroup>
 		<Pages name="ГруппаСтраницы" id="4">
 			<ExtendedTooltip name="ГруппаСтраницыРасширеннаяПодсказка" id="5"/>
 			<ChildItems>
@@ -43,14 +63,11 @@
 							<v8:content>Диалог</v8:content>
 						</v8:item>
 					</Title>
-					<Group>Vertical</Group>
 					<ExtendedTooltip name="СтраницаДиалогРасширеннаяПодсказка" id="7"/>
 					<ChildItems>
 						<HTMLDocumentField name="ОтветHTML" id="11">
 							<DataPath>ОтветHTML</DataPath>
 							<TitleLocation>None</TitleLocation>
-							<HorizontalStretch>true</HorizontalStretch>
-							<VerticalStretch>true</VerticalStretch>
 							<ContextMenu name="ОтветHTMLКонтекстноеМеню" id="12"/>
 							<ExtendedTooltip name="ОтветHTMLРасширеннаяПодсказка" id="13"/>
 						</HTMLDocumentField>
@@ -62,27 +79,27 @@
 									<v8:content>Вопрос</v8:content>
 								</v8:item>
 							</Title>
-							<MultiLine>true</MultiLine>
 							<AutoMaxWidth>false</AutoMaxWidth>
 							<Height>3</Height>
 							<HorizontalStretch>true</HorizontalStretch>
 							<VerticalStretch>false</VerticalStretch>
+							<MultiLine>true</MultiLine>
 							<ContextMenu name="ПромптКонтекстноеМеню" id="9"/>
 							<ExtendedTooltip name="ПромптРасширеннаяПодсказка" id="10"/>
 						</InputField>
 						<UsualGroup name="ГруппаКоманды" id="14">
-							<Group>HorizontalIfPossible</Group>
 							<ExtendedTooltip name="ГруппаКомандыРасширеннаяПодсказка" id="15"/>
 							<ChildItems>
 								<Button name="Отправить" id="16">
-									<CommandName>Form.Command.Отправить</CommandName>
+									<Type>UsualButton</Type>
 									<DefaultButton>true</DefaultButton>
+									<CommandName>Form.Command.Отправить</CommandName>
 									<ExtendedTooltip name="ОтправитьРасширеннаяПодсказка" id="17"/>
 								</Button>
 								<CheckBoxField name="ВыполнятьВФоне" id="18">
 									<DataPath>ВыполнятьВФоне</DataPath>
-									<CheckBoxType>Switcher</CheckBoxType>
 									<TitleLocation>Right</TitleLocation>
+									<CheckBoxType>Switcher</CheckBoxType>
 									<ContextMenu name="ВыполнятьВФонеКонтекстноеМеню" id="19"/>
 									<ExtendedTooltip name="ВыполнятьВФонеРасширеннаяПодсказка" id="20"/>
 									<Events>
@@ -91,6 +108,7 @@
 								</CheckBoxField>
 								<InputField name="РазмерКонтекста" id="21">
 									<DataPath>РазмерКонтекста</DataPath>
+									<Visible>false</Visible>
 									<Title>
 										<v8:item>
 											<v8:lang>ru</v8:lang>
@@ -104,30 +122,20 @@
 										<Event name="OnChange">РазмерКонтекстаПриИзменении</Event>
 									</Events>
 								</InputField>
-								<InputField name="Агент" id="92">
-									<DataPath>Агент</DataPath>
-									<Title>
-										<v8:item>
-											<v8:lang>ru</v8:lang>
-											<v8:content>Агент</v8:content>
-										</v8:item>
-									</Title>
-									<DropListButton>true</DropListButton>
-									<ContextMenu name="АгентКонтекстноеМеню" id="93"/>
-									<ExtendedTooltip name="АгентРасширеннаяПодсказка" id="94"/>
-									<Events>
-										<Event name="OnChange">АгентПриИзменении</Event>
-									</Events>
-								</InputField>
 								<Button name="Очистить" id="24">
+									<Type>UsualButton</Type>
 									<CommandName>Form.Command.Очистить</CommandName>
 									<ExtendedTooltip name="ОчиститьРасширеннаяПодсказка" id="25"/>
 								</Button>
 								<Button name="ПрикрепитьФайлы" id="26">
+									<Type>UsualButton</Type>
+									<Visible>false</Visible>
 									<CommandName>Form.Command.ПрикрепитьФайлы</CommandName>
 									<ExtendedTooltip name="ПрикрепитьФайлыРасширеннаяПодсказка" id="27"/>
 								</Button>
 								<Button name="ОчиститьВложения" id="28">
+									<Type>UsualButton</Type>
+									<Visible>false</Visible>
 									<CommandName>Form.Command.ОчиститьВложения</CommandName>
 									<ExtendedTooltip name="ОчиститьВложенияРасширеннаяПодсказка" id="29"/>
 								</Button>
@@ -136,32 +144,33 @@
 					</ChildItems>
 				</Page>
 				<Page name="СтраницаВложения" id="30">
+					<Visible>false</Visible>
 					<Title>
 						<v8:item>
 							<v8:lang>ru</v8:lang>
 							<v8:content>Вложения</v8:content>
 						</v8:item>
 					</Title>
-					<Group>Vertical</Group>
 					<ExtendedTooltip name="СтраницаВложенияРасширеннаяПодсказка" id="31"/>
 					<ChildItems>
 						<InputField name="ВложенияТекст" id="32">
 							<DataPath>ВложенияТекст</DataPath>
+							<ReadOnly>true</ReadOnly>
 							<Title>
 								<v8:item>
 									<v8:lang>ru</v8:lang>
 									<v8:content>Вложения (текст)</v8:content>
 								</v8:item>
 							</Title>
-							<ReadOnly>true</ReadOnly>
-							<MultiLine>true</MultiLine>
 							<AutoMaxWidth>false</AutoMaxWidth>
 							<Height>3</Height>
+							<MultiLine>true</MultiLine>
 							<ContextMenu name="ВложенияТекстКонтекстноеМеню" id="33"/>
 							<ExtendedTooltip name="ВложенияТекстРасширеннаяПодсказка" id="34"/>
 						</InputField>
 						<Table name="ТаблицаВложений" id="35">
 							<DataPath>ТаблицаВложений</DataPath>
+							<RowFilter xsi:nil="true"/>
 							<ContextMenu name="ТаблицаВложенийКонтекстноеМеню" id="36"/>
 							<AutoCommandBar name="ТаблицаВложенийКоманднаяПанель" id="37"/>
 							<ExtendedTooltip name="ТаблицаВложенийРасширеннаяПодсказка" id="38"/>

@@ -61,6 +61,7 @@
 					<v8:content>https://github.com/vitebc/1c-ai-agent</v8:content>
 				</v8:item>
 			</VendorInformationAddress>
+			<ConfigurationInformationAddress/>
 		</Properties>
 		<ChildObjects>
 			<Language>Русский</Language>

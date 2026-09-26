@@ -1,0 +1,38 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<ConfigDumpInfo xmlns="http://v8.1c.ru/8.3/xcf/dumpinfo" xmlns:xen="http://v8.1c.ru/8.3/xcf/enums" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" format="Hierarchical" version="2.20">
+	<ConfigVersions>
+		<Metadata name="CommonModule.a1c_МаркдаунПарсер" id="3f7c8b7e-8691-434d-965c-9916ae41328f" configVersion="254cee799cd760578fda5b6e39aeeba235a1ac63"/>
+		<Metadata name="CommonModule.a1c_МаркдаунПарсер.Module" id="3f7c8b7e-8691-434d-965c-9916ae41328f.0" configVersion="5085a8145ce476b0679c5f55bcd4bd151dba8a00"/>
+		<Metadata name="CommonModule.a1c_ЧатФоновый" id="3cc9b771-3762-4951-9098-ccf65d49ae5d" configVersion="bf040276f98c6e67cc583d319c0c3934dbd2f5db"/>
+		<Metadata name="CommonModule.a1c_ЧатФоновый.Module" id="3cc9b771-3762-4951-9098-ccf65d49ae5d.0" configVersion="3bebc9cb4064d1ad2f398b2760c444b5251e4554"/>
+		<Metadata name="Configuration.A1C_Инструменты" id="c34d6742-d748-4cee-854a-a3c50b91e65c" configVersion="7a9197b8f2d7b40a76d56ea2ad55294473b05e33"/>
+		<Metadata name="DataProcessor.a1c_ИнструментДерево" id="48a6f040-41a8-4541-b761-c0abf24fe265" configVersion="7fed03a08bb38e29fa69b7b6ea9c72b6ba96e043"/>
+		<Metadata name="DataProcessor.a1c_ИнструментДерево.ManagerModule" id="48a6f040-41a8-4541-b761-c0abf24fe265.2" configVersion="efb0646693ffc9c613880311e74fefb6c2021eb4"/>
+		<Metadata name="DataProcessor.a1c_ИнструментЖурнал" id="6b7d0188-dc97-4e66-bf5a-3ec0d04f3124" configVersion="1347f41038dbcd96befe018cc00ef1039353cde3"/>
+		<Metadata name="DataProcessor.a1c_ИнструментЖурнал.ManagerModule" id="6b7d0188-dc97-4e66-bf5a-3ec0d04f3124.2" configVersion="956ab282e1be51bc4bde34b420fff399048973a2"/>
+		<Metadata name="DataProcessor.a1c_ИнструментЗапросы" id="f372f0f8-fc43-42b2-94e2-96d9494899e9" configVersion="b95e97cf572162fbbe8c460927e4074e2f765f26"/>
+		<Metadata name="DataProcessor.a1c_ИнструментЗапросы.ManagerModule" id="f372f0f8-fc43-42b2-94e2-96d9494899e9.2" configVersion="51eda39d4e2c13f964406be898fbbcf803c6b78b"/>
+		<Metadata name="DataProcessor.a1c_ИнструментКонтрагенты" id="0ff829a1-cdaf-4a03-b90c-c3bba60569df" configVersion="bdc04dd656a2fb6be7681dcf63975e55d071dbe3"/>
+		<Metadata name="DataProcessor.a1c_ИнструментКонтрагенты.ManagerModule" id="0ff829a1-cdaf-4a03-b90c-c3bba60569df.2" configVersion="57ea1f7e34ce150cb05c942b1d12ba5629ca1c40"/>
+		<Metadata name="DataProcessor.a1c_ИнструментНавигация" id="bb582d2f-c464-433b-bfe0-cd18e8f3867b" configVersion="dbfb8561e1d2c5348f54f39484da0be7846af8de"/>
+		<Metadata name="DataProcessor.a1c_ИнструментНавигация.ManagerModule" id="bb582d2f-c464-433b-bfe0-cd18e8f3867b.2" configVersion="3090a90572781cb96869a18a3cd10a876a175d54"/>
+		<Metadata name="DataProcessor.a1c_ИнструментОстатки" id="1058cb38-0daf-400e-bd44-575441546735" configVersion="da2a004dd2e7cfb5b796e5c4b3ea523f58c59528"/>
+		<Metadata name="DataProcessor.a1c_ИнструментОстатки.ManagerModule" id="1058cb38-0daf-400e-bd44-575441546735.2" configVersion="b18b7b8b1a767dfb83b036fd6051194983aa8bc7"/>
+		<Metadata name="DataProcessor.a1c_ИнструментОтчеты" id="f3624636-b83b-4f8b-b23a-603b3aed4682" configVersion="8ec124013bdcbd769cf58dde7c7f662bc5ceec06"/>
+		<Metadata name="DataProcessor.a1c_ИнструментОтчеты.ManagerModule" id="f3624636-b83b-4f8b-b23a-603b3aed4682.2" configVersion="a65d3833e5341eae7674c3ba662f8419e1cb653d"/>
+		<Metadata name="DataProcessor.a1c_ИнструментПрава" id="dfc4cd13-0730-42f7-af65-287d88efe103" configVersion="13e0409c00da4b240135dde1920900fb7a9ea682"/>
+		<Metadata name="DataProcessor.a1c_ИнструментПрава.ManagerModule" id="dfc4cd13-0730-42f7-af65-287d88efe103.2" configVersion="4c5b23bb2385a5e181940944cfdddba8ce96c36c"/>
+		<Metadata name="DataProcessor.a1c_Чат" id="a870ecee-7bad-482e-acb4-edf6377b7d36" configVersion="38af9de9c0010caa8bd3b87db6f52304fca3509c"/>
+		<Metadata name="DataProcessor.a1c_Чат.Form.Форма" id="983cd566-8d13-4447-9203-babbf4f3a17d" configVersion="4e84cbb1166aa7973099d5705c6fd47c83904a98"/>
+		<Metadata name="DataProcessor.a1c_Чат.Form.Форма.Form" id="983cd566-8d13-4447-9203-babbf4f3a17d.0" configVersion="272a69812afaa569d6d79bb52160ce52acb3393e"/>
+		<Metadata name="DataProcessor.a1c_Чат.Template.HTMLЧат" id="d195e138-5487-4983-8ab6-ad7740dfca4d" configVersion="83a53cd8ffa0407702e9fd196605f66a858fe8fa"/>
+		<Metadata name="DataProcessor.a1c_Чат.Template.ШаблонДиалога" id="5f5e6c2b-2d66-469b-8578-74aa0847df84" configVersion="26f1a42b410ac59e4c8464aea14917debd3e07a9"/>
+		<Metadata name="DataProcessor.a1c_Чат.Template.ШаблонДиалога.Template" id="5f5e6c2b-2d66-469b-8578-74aa0847df84.0" configVersion="7b4987f2639340b8bc2c6218a74f115420a385c6"/>
+		<Metadata name="Language.Русский" id="5c07aefb-57cb-4fac-b621-05acd040bafa" configVersion="64ee2dd7776ba2d11a4560220754367bcbe9c2f0"/>
+		<Metadata name="Role.a1c_АгентДоступ" id="b79745fc-4cd7-4b3b-b8b4-b9c4af368b64" configVersion="4eb5d602d17b6e8e145318cb178b4287b3b79bb2"/>
+		<Metadata name="Role.a1c_АгентДоступ.Rights" id="b79745fc-4cd7-4b3b-b8b4-b9c4af368b64.0" configVersion="945ca08e5fa00dd442aaa42b9afe0f4ca7f73d26"/>
+		<Metadata name="Subsystem.a1c_mcp_MCPСервер" id="63cd882b-55f9-4411-8dc9-1a42998f7103" configVersion="66480d05a0836c08b46b195f72861f615c5f7ea3"/>
+		<Metadata name="Subsystem.a1c_mcp_MCPСервер.CommandInterface" id="63cd882b-55f9-4411-8dc9-1a42998f7103.1" configVersion="fdaec039eea90396e8275a4185f01ff2ce9f09af"/>
+		<Metadata name="Subsystem.a1c_mcp_MCPСервер.Subsystem.mcp_КонтейнерыИнструментов" id="04282bae-0447-4b3c-8c6f-7af12dbcd498" configVersion="2de045eb90182c9e2033fb50a4fd8303b2d81aa4"/>
+	</ConfigVersions>
+</ConfigDumpInfo>
