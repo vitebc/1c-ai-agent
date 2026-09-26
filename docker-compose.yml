@@ -17,6 +17,13 @@ services:
       ONEC_MCP_URL: ${ONEC_MCP_URL_COMPOSE:-http://mcp-proxy:8000}
     ports:
       - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      # Рантайм-конфиги агента/скилов/паттернов — монтируем из репозитория,
+      # чтобы новый AGENT.md/SKILL.md/паттерн подхватывался без пересборки образа
+      # (бэкенд перечитывает папки на каждый запрос). Только чтение.
+      - ./backend/agents:/app/agents:ro
+      - ./backend/skills:/app/skills:ro
+      - ./backend/patterns:/app/patterns:ro
     depends_on:
       postgres:
         condition: service_healthy
