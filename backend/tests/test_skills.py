@@ -96,23 +96,27 @@ def test_match_top1_by_description() -> None:
     reg = SkillRegistry()
     reg.skills.append(Skill(name="a-orders", description="заказы клиента контрагент", tools=("x",), prompt=""))
     reg.skills.append(Skill(name="b-stock", description="остатки товаров на складах", tools=("y",), prompt=""))
-    got = asyncio.run(reg.match("покажи последние заказы клиента", FakeEmbeddings()))
+    got, score = asyncio.run(reg.match("покажи последние заказы клиента", FakeEmbeddings()))
     assert got is not None and got.name == "a-orders"
-    got2 = asyncio.run(reg.match("сколько товара на складах", FakeEmbeddings()))
+    assert score > 0.0
+    got2, _ = asyncio.run(reg.match("сколько товара на складах", FakeEmbeddings()))
     assert got2 is not None and got2.name == "b-stock"
 
 
 def test_match_empty_registry_or_query() -> None:
-    assert asyncio.run(SkillRegistry().match("что-то", FakeEmbeddings())) is None
+    assert asyncio.run(SkillRegistry().match("что-то", FakeEmbeddings())) == (None, 0.0)
     reg = SkillRegistry()
     reg.skills.append(Skill(name="a", description="заказы", tools=("x",), prompt=""))
-    assert asyncio.run(reg.match("   ", FakeEmbeddings())) is None
+    assert asyncio.run(reg.match("   ", FakeEmbeddings())) == (None, 0.0)
 
 
 def test_match_threshold_filters_weak() -> None:
     reg = SkillRegistry()
     reg.skills.append(Skill(name="a", description="заказы клиента", tools=("x",), prompt=""))
-    assert asyncio.run(reg.match("заказы клиента контрагента", FakeEmbeddings(), min_score=0.99)) is None
+    got, score = asyncio.run(reg.match("заказы клиента контрагента", FakeEmbeddings(), min_score=0.99))
+    assert got is None
+    # score возвращается честный (для калибровки порога по логам), даже при отсеве
+    assert score < 0.99
 
 
 def test_subset_keeps_order_and_drops_unknown() -> None:
@@ -215,6 +219,18 @@ def test_chat_automatch(tmp_path: Path) -> None:
             assert _parse_sse(r.text)["done"][0]["skill"] == "zakazy"
     finally:
         _cleanup_user("skill-u4")
+
+
+def test_chat_weak_query_gets_no_skill(tmp_path: Path) -> None:
+    """Вопрос не про скил → skill=None, модель работает полным набором тулзов агента."""
+    client, _ = _api_client(tmp_path, [AssistantMessage(content="ok")])
+    try:
+        with client:
+            r = client.post("/chat", json={"message": "что это за база", "user_id": "skill-u5"})
+            assert r.status_code == 200, r.text
+            assert _parse_sse(r.text)["done"][0]["skill"] is None
+    finally:
+        _cleanup_user("skill-u5")
 
 
 def _cleanup_user(onec_id: str) -> None:

@@ -60,6 +60,9 @@ class Settings(BaseSettings):
 
     # Рантайм-скилы чат-агента (backend/skills/*/SKILL.md). Перечитываются на каждый запрос.
     skills_dir: str = str(Path(__file__).resolve().parent.parent.parent / "skills")
+    # Порог авто-матчинга скила по description (косинус). Ниже — скил не применяется,
+    # модель работает полным набором тулзов агента. Калибровать по score в логах.
+    skill_match_threshold: float = 0.3
     # Рантайм-агенты (backend/agents/*/AGENT.md). Перечитываются на каждый запрос.
     agents_dir: str = str(Path(__file__).resolve().parent.parent.parent / "agents")
     # Папка паттернов ленивой подгрузки (backend/patterns/*.md). Тоже на каждый запрос.

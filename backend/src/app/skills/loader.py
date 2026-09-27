@@ -86,21 +86,27 @@ class SkillRegistry:
     def names(self) -> list[str]:
         return [s.name for s in self.skills]
 
-    async def match(self, query: str, embeddings: Embeddings, *, min_score: float = 0.0) -> Skill | None:
-        """Top-1 по косинусной близости запроса к description. Пусто/ниже порога — None."""
+    async def match(self, query: str, embeddings: Embeddings, *, min_score: float = 0.0) -> tuple[Skill | None, float]:
+        """Top-1 по косинусной близости запроса к description. Возвращает (скил, score).
+
+        Пусто/ниже порога — (None, лучший score): слабый матч скил не включает,
+        модель работает полным набором тулзов агента.
+        """
         if not self.skills or not query.strip():
-            return None
+            return None, 0.0
         vecs = await embeddings.embed([query, *(s.description for s in self.skills)])
         if len(vecs) != len(self.skills) + 1:
-            return None
+            return None, 0.0
         query_vec = _normalized(vecs[0])
         best: Skill | None = None
-        best_score = min_score
+        best_score = 0.0
         for skill, vec in zip(self.skills, vecs[1:], strict=True):
             score = sum(a * b for a, b in zip(query_vec, _normalized(vec), strict=False))
             if score > best_score:
                 best, best_score = skill, score
-        return best
+        if best is None or best_score <= min_score:
+            return None, best_score
+        return best, best_score
 
 
 def _normalized(vec: list[float]) -> list[float]:

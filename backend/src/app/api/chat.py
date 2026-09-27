@@ -424,7 +424,13 @@ async def chat(
                 if agent_spec.allows_all_skills
                 else SkillRegistry(skills=[s for s in skills.skills if s.name in agent_spec.skills])
             )
-            skill = await scoped.match(req.message, embeddings)
+            skill, match_score = await scoped.match(req.message, embeddings, min_score=settings.skill_match_threshold)
+            log.info(
+                "авто-матчинг скила: score=%.3f порог=%.2f итог=%s",
+                match_score,
+                settings.skill_match_threshold,
+                skill.name if skill is not None else None,
+            )
         if skill is not None:
             chat_session.skill_name = skill.name
         else:
