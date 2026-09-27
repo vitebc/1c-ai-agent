@@ -51,6 +51,16 @@
 						<Event name="OnChange">АдресБэкендаПриИзменении</Event>
 					</Events>
 				</InputField>
+				<Decoration name="ПредупреждениеБазы" id="97">
+					<DataPath>ПредупреждениеБазы</DataPath>
+					<Title>
+						<v8:item>
+							<v8:lang>ru</v8:lang>
+							<v8:content>Предупреждение базы</v8:content>
+						</v8:item>
+					</Title>
+					<ExtendedTooltip name="ПредупреждениеБазыРасширеннаяПодсказка" id="98"/>
+				</Decoration>
 			</ChildItems>
 		</UsualGroup>
 		<Pages name="ГруппаСтраницы" id="4">
@@ -291,6 +301,21 @@
 			</Title>
 			<Type>
 				<v8:Type>xs:boolean</v8:Type>
+			</Type>
+		</Attribute>
+		<Attribute name="ПредупреждениеБазы" id="99">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Предупреждение базы</v8:content>
+				</v8:item>
+			</Title>
+			<Type>
+				<v8:Type>xs:string</v8:Type>
+				<v8:StringQualifiers>
+					<v8:Length>0</v8:Length>
+					<v8:AllowedLength>Variable</v8:AllowedLength>
+				</v8:StringQualifiers>
 			</Type>
 		</Attribute>
 		<Attribute name="Агент" id="95">

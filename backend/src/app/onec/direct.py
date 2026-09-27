@@ -25,6 +25,30 @@ from app.onec.client import OnecError
 log = logging.getLogger("agent1c.direct")
 
 
+def parse_bases_map(raw: str) -> dict[str, str]:
+    """Разобрать ONEC_BASES вида "имя=url;...": имя (НРег) -> корень публикации.
+
+    Только исключения (нестандартные порты/хосты). Пусто — {}. Кривая запись
+    или адрес — ValueError (валидатор конфига роняет старт с понятным текстом).
+    """
+    out: dict[str, str] = {}
+    for chunk in raw.split(";"):
+        chunk = chunk.strip()
+        if not chunk:
+            continue
+        name, sep, url = chunk.partition("=")
+        name = name.strip().lower()
+        if not sep or not name:
+            raise ValueError(f"ONEC_BASES: запись без '=' или без имени: {chunk!r}")
+        if name in out:
+            raise ValueError(f"ONEC_BASES: дубль имени базы: {name!r}")
+        try:
+            out[name] = validate_base_url(url)
+        except ValueError as e:
+            raise ValueError(f"ONEC_BASES: база {name!r}: {e}") from e
+    return out
+
+
 def validate_base_url(raw: str | None) -> str:
     """Проверить адрес базы из запроса, вернуть нормализованный корень публикации.
 

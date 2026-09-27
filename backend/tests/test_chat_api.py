@@ -9,6 +9,7 @@ import asyncio
 import json
 from typing import Any
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import func, select
 
@@ -125,10 +126,14 @@ def test_chat_done_carries_model_time_tokens() -> None:
         _cleanup()
 
 
-def test_chat_base_name_splits_session() -> None:
+def test_chat_base_name_splits_session(monkeypatch: pytest.MonkeyPatch) -> None:
     """Сессия чужой базы не переиспользуется: история баз не смешивается."""
+    from app.config import settings
     from app.db.models import ChatSession
 
+    # Базы резолвятся через мапу (иначе строгий резолвер вернёт 400):
+    # закрытые порты — быстрый refused, реестр из статического набора.
+    monkeypatch.setattr(settings, "onec_bases", "base_a=http://127.0.0.1:9/a;base_b=http://127.0.0.1:9/b")
     client = _client([AssistantMessage(content="a1"), AssistantMessage(content="a2")])
     try:
         with client:

@@ -3,6 +3,8 @@ from pathlib import Path
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from app.onec.direct import parse_bases_map
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=(".env", "../.env"), extra="ignore")
@@ -50,6 +52,21 @@ class Settings(BaseSettings):
     # per-user RLS следующим шагом.
     onec_username: str = "agent"
     onec_password: str | None = None
+    # Переопределения адресов публикаций для исключений (нестандартные порты/хосты):
+    # "base=url;...". Побеждает присланный формой base_url. Значения проверяются
+    # на старте — кривая запись роняет бэкенд с понятной ошибкой, а не 400 в рантайме.
+    onec_bases: str = ""
+
+    @field_validator("onec_bases")
+    @classmethod
+    def _validate_bases_map(cls, v: str) -> str:
+        parse_bases_map(v)  # кривая запись — бэкенд не стартует, чинить .env
+        return v
+
+    @property
+    def onec_base_map(self) -> dict[str, str]:
+        """Имя базы (НРег) -> корень публикации. Только исключения из ONEC_BASES."""
+        return parse_bases_map(self.onec_bases)
 
     # Агрегирующий MCP-сервер (подсерверы server__tool, напр. search-ka-update, rlm).
     # Пусто — отключён. Агент выбирает подсерверы полем mcp в AGENT.md.

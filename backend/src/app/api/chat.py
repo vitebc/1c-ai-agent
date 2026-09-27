@@ -166,16 +166,33 @@ async def get_registry() -> ToolRegistry:
     return ToolRegistry(MOCK_ONEC_TOOLS + extra)
 
 
-async def build_registry_for_base_url(base_url: str, client: OnecClient | None = None) -> ToolRegistry:
-    """Реестр под конкретную базу: прямой JSON-RPC в {base_url}/hs/mcp/rpc.
+def resolve_base_root(base_name: str | None, base_url: str | None) -> str | None:
+    """Корень публикации базы для запроса. None — идентификации нет, штатный путь.
 
-    client — только для тестов (FakeOnecClient); в проде строится JsonRpcOnecClient
-    под сервисными ONEC_USERNAME/ONEC_PASSWORD. Невалидный base_url — ValueError.
+    Порядок: мапа исключений ONEC_BASES (побеждает присланное) → валидный base_url
+    из запроса. Имя есть, а адреса нигде нет (файловая ИБ, кривой запрос) — ValueError
+    с эхом пришедшего (эндпоинт отдаёт 400): молча отвечать чужой базой хуже ошибки.
     """
+    name = (base_name or "").strip().lower()
+    url = (base_url or "").strip()
+    if not name and not url:
+        return None
+    if name and name in settings.onec_base_map:
+        return settings.onec_base_map[name]
+    if url:
+        return validate_base_url(url)  # ValueError -> 400 в эндпоинте
+    raise ValueError(
+        "не могу получить инструменты базы "
+        f"{name!r}: проверьте адрес публикации "
+        f"(пришло: base_name={base_name!r}, base_url={base_url!r})"
+    )
+
+
+async def build_registry_for_root(root: str, client: OnecClient | None = None) -> ToolRegistry:
+    """Реестр под уже проверенный корень публикации (см. resolve_base_root)."""
     embeddings = build_embeddings(settings.embeddings_provider, settings.tei_base_url)
     pattern_tool = make_pattern_tool(settings.patterns_dir)
     extra = [make_kb_search(SessionFactory, embeddings)] + ([pattern_tool] if pattern_tool else [])
-    root = validate_base_url(base_url)  # ValueError -> 400 в эндпоинте
     direct = client or JsonRpcOnecClient(
         root,
         username=settings.onec_username,
@@ -183,6 +200,15 @@ async def build_registry_for_base_url(base_url: str, client: OnecClient | None =
     )
     log.info("реестр инструментов базы: %s", root)
     return await _merge_live_registry(direct, extra)
+
+
+async def build_registry_for_base_url(base_url: str, client: OnecClient | None = None) -> ToolRegistry:
+    """Реестр под конкретную базу: прямой JSON-RPC в {base_url}/hs/mcp/rpc.
+
+    client — только для тестов (FakeOnecClient); в проде строится JsonRpcOnecClient
+    под сервисными ONEC_USERNAME/ONEC_PASSWORD. Невалидный base_url — ValueError.
+    """
+    return await build_registry_for_root(validate_base_url(base_url), client)
 
 
 def scope_registry_for_agent(registry: ToolRegistry, agent: Agent) -> tuple[ToolRegistry, list[str]]:
@@ -218,23 +244,28 @@ async def get_agent_registry() -> AgentRegistry:
 async def list_tools(
     registry: ToolRegistry = Depends(get_registry),  # noqa: B008
     base_url: str | None = Query(default=None, max_length=256, description="Реестр конкретной базы: прямой JSON-RPC"),
+    base_name: str | None = Query(default=None, max_length=128, description="Имя базы: сначала мапа ONEC_BASES"),
 ) -> JSONResponse:
     """Полный реестр доступных инструментов (динамически: mock/live + локальные).
 
     Источник правды для `AGENT.md: tools:` — бери имена отсюда.
     В live мода прокси опрашивается; динамические тулзы из 1С (a1c_Инструмент*)
     появляются без правки кода бэкенда.
-    С base_url — реестр именно этой базы (прямой вызов, как в POST /chat).
+    С base_url/base_name — реестр именно этой базы (тот же резолвер, что в POST /chat:
+    мапа ONEC_BASES → base_url; мусор — 400).
     """
-    if base_url:
+    root: str | None = None
+    if base_name or base_url:
         try:
-            registry = await build_registry_for_base_url(base_url)
+            root = resolve_base_root(base_name, base_url)
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e)) from e
+    if root is not None:
+        registry = await build_registry_for_root(root)
     return JSONResponse(
         {
             "mode": settings.onec_mode,
-            "base_url": base_url,
+            "base_url": root,
             "tools": [
                 {
                     "name": t.name,
@@ -347,6 +378,12 @@ async def chat(
     # но дополнительно режем число вложений
     if req.attachments and len(req.attachments) > 10:
         raise HTTPException(status_code=413, detail="too many attachments (max 10)")
+    # База раньше сессии: не смогли резолвить адрес — ни сессии, ни эмбеддингов,
+    # только громкая 400 с эхом пришедшего. Пусто — штатный путь (mock/прокси).
+    try:
+        base_root = resolve_base_root(req.base_name, req.base_url)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
     # Создаём/находим сессию и грузим историю
     async with SessionFactory() as session:
         user = (await session.execute(select(User).where(User.onec_id == req.user_id))).scalar_one_or_none()
@@ -436,12 +473,9 @@ async def chat(
         else:
             chat_session.skill_name = None
         # Вопрос из базы X отвечает база X: прямой JSON-RPC в её публикацию.
-        # Пусто — штатный путь (mock или прокси). Невалидный base_url — 400.
-        if req.base_url:
-            try:
-                registry = await build_registry_for_base_url(req.base_url)
-            except ValueError as e:
-                raise HTTPException(status_code=400, detail=str(e)) from e
+        # base_root уже проверен выше (мапа → base_url); None — штатный путь.
+        if base_root is not None:
+            registry = await build_registry_for_root(base_root)
         registry, rejected = scope_registry_for_agent(registry, agent_spec)
         if rejected:
             log.warning("агент %s: отброшены инструменты: %s", agent_spec.name, rejected)
