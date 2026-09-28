@@ -39,3 +39,4 @@ models/
 
 # Docker
 postgres-data/
+.opencode/
