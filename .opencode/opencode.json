@@ -1,0 +1,16 @@
+{
+  "mcp": {
+    "servers": {
+      "v8std": {
+        "type": "remote",
+        "url": "https://ai.v8std.ru/mcp",
+        "disabled": false
+      },
+      "mcp-1c": {
+        "type": "remote",
+        "url": "http://100.85.239.61:9224/api/mcp-aggregated/mcp",
+        "disabled": false
+      }
+    }
+  }
+}

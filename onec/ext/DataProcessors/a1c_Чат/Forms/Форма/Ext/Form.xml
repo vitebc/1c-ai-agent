@@ -51,16 +51,16 @@
 						<Event name="OnChange">АдресБэкендаПриИзменении</Event>
 					</Events>
 				</InputField>
-				<Decoration name="ПредупреждениеБазы" id="97">
-					<DataPath>ПредупреждениеБазы</DataPath>
-					<Title>
+				<LabelDecoration name="ПредупреждениеБазы" id="97">
+					<Title formatted="false">
 						<v8:item>
 							<v8:lang>ru</v8:lang>
 							<v8:content>Предупреждение базы</v8:content>
 						</v8:item>
 					</Title>
-					<ExtendedTooltip name="ПредупреждениеБазыРасширеннаяПодсказка" id="98"/>
-				</Decoration>
+					<ContextMenu name="ПредупреждениеБазыКонтекстноеМеню" id="98"/>
+					<ExtendedTooltip name="ПредупреждениеБазыРасширеннаяПодсказка" id="88"/>
+				</LabelDecoration>
 			</ChildItems>
 		</UsualGroup>
 		<Pages name="ГруппаСтраницы" id="4">
