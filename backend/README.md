@@ -17,12 +17,14 @@ uv run uvicorn app.main:app --reload --app-dir src
 в корне репозитория. Пример всех переменных — `../.env.example`.
 
 Ключевое для локального контура: `ONEC_MODE=mock|live` (моки или прокси
-через `ONEC_MCP_URL` + опционально `ONEC_TOKEN`), CORS открыт (`*`) —
+через `ONEC_MCP_URL` + опционально `ONEC_TOKEN`), прямые вызовы конкретных баз —
+всегда live-JRPC в `{base_url}/hs/mcp/rpc` под `ONEC_USERNAME`/`ONEC_PASSWORD`
+(+ `ONEC_BASES` для исключений). CORS открыт (`*`, `GET/POST/OPTIONS`) —
 чат-форма 1С ходит из HTML-документа.
 
-## Смоук function calling (шаг 1)
+## Смоук function calling
 
-Гоняет 24 вопроса на русском через петлю с мок-инструментами 1С, считает долю
+Гоняет 31 вопрос на русском через петлю с мок-инструментами 1С, считает долю
 попаданий в ожидаемый инструмент (критерий ≥ 0.9):
 
 ```bash
@@ -87,8 +89,11 @@ EOF
 профиль `rag` в compose). Fake — детерминированные вектора с лексическим
 ранжированием: честный тест plumbing'а retrieval, не качества поиска.
 
-Чат: `POST /chat {message, session_id?, user_id?, agent?, skill?}` — SSE (`tool`/`answer`/`done`),
-история пишется в postgres. Профиль прав пользователя берётся из `users`
+Чат: `POST /chat {message, session_id?, user_id?, attachments?[], context_size?, base_name?, base_url?, agent?, skill?}` — SSE (`tool`/`answer`/`done`),
+история пишется в postgres. Мультибаза: с `base_url` — прямой JRPC в базу
+(`JsonRpcOnecClient`), без — штатный путь (`mock`/прокси); резолв
+`resolve_base_root` (мапа `ONEC_BASES` → присланный `base_url`), имя без адреса → `400`
+без создания сессии. Профиль прав пользователя берётся из `users`
 (`access_profile`, дефолт `all`). В `done`: `session_id/agent/skill/model/elapsed_s`,
 токены (`prompt/completion/total`), `rounds/tool_errors`.
 
@@ -112,7 +117,9 @@ EOF
 
 Скилы: `skills/<name>/SKILL.md` (формат — `skills/SKILL.md`). Бэкенд фильтрует
 реестр по `tools` скила и дописывает его промпт; выбор — всегда авто-матчинг
-по `description` среди скилов агента (форма 1С поле `skill` не шлёт).
+по `description` среди скилов агента (форма 1С поле `skill` не шлёт),
+top-1 только при score ≥ `skill_match_threshold` (дефолт 0.3; ниже — полный
+набор тулзов агента, score пишется в лог для калибровки).
 Новый сценарий — новый файл, без рестарта.
 
 Паттерны: `patterns/<name>.md` (формат — `patterns/README.md`). Ленивая

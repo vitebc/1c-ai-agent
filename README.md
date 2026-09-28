@@ -6,9 +6,9 @@
 
 ## Структура
 
-- `backend/` — FastAPI-сервис (agent loop, RAG, MCP-клиент к 1С). Python 3.12 + uv. Рантайм-конфиги кодом не правятся: `agents/<name>/AGENT.md`, `skills/<name>/SKILL.md`, `patterns/<name>.md`.
+- `backend/` — FastAPI-сервис (agent loop, RAG, MCP-клиент к 1С). Python 3.12 + uv. Рантайм-конфиги кодом не правятся: `agents/<name>/AGENT.md`, `skills/<name>/SKILL.md`, `patterns/<name>.md`. Мультибаза: прямые вызовы `{base_url}/hs/mcp/rpc` под `ONEC_USERNAME`/`ONEC_PASSWORD` + мапа исключений `ONEC_BASES`; без `base_url` — `ONEC_MODE=mock|live` через `ONEC_MCP_URL`.
 - `infra/` — конфиги инфраструктуры (init-скрипты postgres и т.п.).
-- `onec/` — сторона 1С: XML-исходники CFE-расширения `A1C_Инструменты` (`ext/`), инструкции (`README.md`, `DEPLOY.md`, `CHAT.md`, `1c_mcp.md`), смоуки (`smoke_check.py`, `smoke_check_rpc.ps1`, `test_rpc.ps1`).
+- `onec/` — сторона 1С: XML-исходники CFE-расширения `A1C_Инструменты` (`ext/`): 8 обработок-контейнеров (`a1c_Инструмент*`) + форма чата `a1c_Чат` (startup-check базы, баннер `ПредупреждениеБазы`); инструкции (`README.md`, `DEPLOY.md`, `CHAT.md`, `1c_mcp.md`), смоуки (`smoke_check.py`, `smoke_check_rpc.ps1`, `test_rpc.ps1`).
 - `data/` — локальные референсные выгрузки (OneBridge, feenlace) и прочие данные. В git не коммитится (см. `.gitignore`).
 - `.agents/skills/` — скилы 1С-разработки (cc-1c-skills), источник в `skills-lock.json`.
 - `docker-compose.yml` — dev-контур на VPS (postgres всегда; `tei` — профиль `rag`; `mcp-proxy` — профиль `onec`).
@@ -16,7 +16,7 @@
 ## Quickstart
 
 ```bash
-cp .env.example .env          # заполнить LLM_BASE_URL/API_KEY/MODEL и MCP_ONEC_URL
+cp .env.example .env          # заполнить LLM_BASE_URL/API_KEY/MODEL, ONEC_USERNAME/PASSWORD (+ONEC_BASES для исключений) и MCP_ONEC_URL для прокси-пути
 docker compose up -d postgres
 # бэкенд — Linux-контейнер (миграции применятся на старте):
 docker compose up -d backend  # или локально: cd backend && uv sync && uv run uvicorn app.main:app --reload --app-dir src

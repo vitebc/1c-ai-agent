@@ -16,11 +16,16 @@
 
 - `mock`: курируемые моки + `search_knowledge_base` + `get_pattern` (если есть паттерны).
 - `live`: курируемые `A1C_Инструменты` + любые `a1c_Инструмент*`/`mcp_КонтейнерыИнструментов` из прокси (схема `inputSchema` из 1С уходит модели напрямую, вызов проксируется) + те же локальные. Новый тул в расширении 1С появится тут **без правки кода бэкенда** — достаточно добавить его имя в `AGENT.md: tools:`.
-- `?base_url=http://srvr/Ref` — реестр конкретной базы через прямой JSON-RPC (как в `POST /chat`); `?base_name=` — сначала мапа исключений `ONEC_BASES`. Мусор → `400`, пусто всё — штатный путь.
+- `?base_url=http://srvr/Ref` + `?base_name=` — реестр конкретной базы через прямой JSON-RPC в `{base_url}/hs/mcp/rpc` (тот же резолвер, что в `POST /chat`: мапа исключений `ONEC_BASES` побеждает присланное → валидный `base_url` из запроса). Мусор → `400`, пусто всё — штатный путь. Форма 1С при старте дергает именно этот эндпоинт для startup-check.
+
+| Query | Назначение |
+|---|---|
+| `base_url` (опц., ≤256) | Корень публикации базы (`http://srvr/Ref`, регистр Ref точный) |
+| `base_name` (опц., ≤128) | Имя ИБ (НРег); сначала ищется в `ONEC_BASES` |
 
 Ответ `200`:
 ```json
-{"mode": "live", "tools": [{"name": "execute_select", "server": "default", "description": "...", "parameters": {"type": "object", "properties": {"query": {"type": "string"}}}}]}
+{"mode": "live", "base_url": "http://srvr/Ref", "tools": [{"name": "execute_select", "server": "default", "description": "...", "parameters": {"type": "object", "properties": {"query": {"type": "string"}}}}]}
 ```
 
 Имена из этого списка — источник правды для поля `tools` в `AGENT.md`. Тулзы агрегатора (`AGG_MCP_URL`) — полными именами `server__tool` с тегом `server`; в `AGENT.md` агент выбирает их полем `mcp: [default, search-ka-update, ...]` + именами в `tools`. Недоступный агрегатор из списка тихо выпадает (warning в лог, чат живёт на остальных тулзах); список агрегатора кешируется (`AGG_MCP_CACHE_TTL`, дефолт 300с).
@@ -82,9 +87,10 @@
   "message": "покажи пять последних заказов Прокудина",
   "session_id": 12,
   "user_id": "ИвановИИ",
-  "attachments": [{"name": "фото.jpg", "mime": "image/jpeg", "data_base64": "..."}],
+  "attachments": [{"name": "фото.jpg", "mime": "image/jpeg", "content_base64": "..."}],
   "context_size": 5,
   "base_name": "ka2",
+  "base_url": "http://srvr/ka2",
   "agent": "assistant",
   "skill": "zakazy-prokudina"
 }
@@ -94,16 +100,17 @@
 | `message` | да | 1–20000 | Вопрос пользователя |
 | `session_id` | нет | — | Сессия бэкенда (история). Чужая `base_name` → новая сессия |
 | `user_id` | нет | дефолт `dev` | `ИмяПользователя()` из 1С; профиль прав из `users.access_profile` |
-| `attachments` | нет | ≤10, `content_base64` ≤20MB | Вложения; в БД пишется только имя файла |
+| `attachments` | нет | ≤10, `content_base64` ≤20MB (алиас `data_base64`) | Вложения; в БД пишется только имя файла; больше 10 → `413` |
 | `context_size` | нет | 1–100 | Пар user/assistant в LLM; дефолт — последние 20 пар |
 | `base_name` | нет | ≤128 | Имя ИБ 1С (НРег), считает BSL |
 | `base_url` | нет | ≤256 | Корень публикации базы (`http://srvr/Ref` из Srvr/Ref строки соединения, регистр Ref точный). Бэкенд ходит в `{base_url}/hs/mcp/rpc` напрямую, минуя прокси: вопрос из базы X отвечает база X. Пусто — штатный путь (mock/прокси). Мусор → `400` |
 | `agent` | нет | ≤64 | Агент; пусто → дефолт (`assistant`), залипает в сессии |
-| `skill` | нет | ≤64 | Скил; пусто → авто top-1 по description среди скилов агента |
+| `skill` | нет | ≤64 | Скил; пусто → авто top-1 по description среди скилов агента (только при score ≥ `skill_match_threshold`, дефолт 0.3; иначе полный набор тулзов агента) |
 
 Резолв базы: мапа исключений `ONEC_BASES` побеждает присланный `base_url`, иначе валидный `base_url` из запроса. Имя есть, а адреса нигде нет → громкая `400` с эхом (`проверьте адрес публикации`, сессия не заводится) вместо молчаливого ответа чужой базы. Форма 1С при старте проверяет себя через `GET /tools?base_name=&base_url=` и показывает баннер, если агент недоступен.
 
-Ошибки: `404` — `session not found`, `agent not found`, `skill not found`,
+Ошибки: `400` — мусор в `base_url` / имя без адреса (`проверьте адрес публикации`, сессия не заводится);
+`404` — `session not found`, `agent not found`, `skill not found`,
 `skill not available for agent`; `413` — больше 10 вложений.
 Предохранитель петли (`agent_max_consecutive_errors`, дефолт 3): после N ошибок
 инструментов подряд ответом приходит честное «не могу обратиться к базе 1С»
