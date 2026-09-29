@@ -53,7 +53,24 @@ class ValidateQueryArgs(BaseModel):
 class MetadataListArgs(BaseModel):
     """Список объектов метаданных (разведка перед execute_select)."""
 
-    metaType: str | None = Field(default=None, description="Catalogs, Documents, Registers... (см. tools/list)")
+    # BSL ядра (mcp_ИнструментДанныеОКонфигурации.СписокМетаданных) читает
+    # Аргументы.metaType БЕЗ проверки .Свойство() + бэкенд не шлёт None:
+    # опущенный параметр = «Поле объекта не обнаружено (metaType)» в 1С.
+    # Поэтому required здесь, а не optional — правило для всех курируемых схем.
+    metaType: str = Field(
+        description=(
+            "ОБЯЗАТЕЛЬНО. Тип коллекции метаданных, строго одно из: Catalogs, Documents, "
+            "InformationRegisters, AccumulationRegisters, AccountingRegisters, CalculationRegisters, "
+            "ChartsOfCharacteristicTypes, ChartsOfAccounts, ChartsOfCalculationTypes, BusinessProcesses, "
+            "Tasks, ExchangePlans, FilterCriteria, Reports, DataProcessors, Enums, CommonModules, "
+            "SessionParameters, CommonTemplates, CommonPictures, XDTOPackages, WebServices, HTTPServices, "
+            "WSReferences, Styles, Languages, FunctionalOptions, FunctionalOptionsParameters, DefinedTypes, "
+            "CommonAttributes, CommonCommands, CommandGroups, Constants, CommonForms, Roles, Subsystems, "
+            "EventSubscriptions, ScheduledJobs, SettingsStorages, Sequences, DocumentJournals, "
+            "ExternalDataSources, Interfaces. Голого Registers нет — только полные имена. "
+            "Тип сначала уточни через get_metadata_tree."
+        )
+    )
     nameMask: str | None = Field(default=None, description="Подстрока имени/синонима")
     maxItems: int = Field(default=50, le=200)
 
@@ -61,8 +78,21 @@ class MetadataListArgs(BaseModel):
 class MetadataStructureArgs(BaseModel):
     """Структура объекта: поля, измерения, ресурсы, реквизиты."""
 
-    metaType: str | None = None
-    name: str | None = None
+    # BSL ядра (СтруктураОбъектаМетаданных) читает metaType и name безусловно —
+    # см. комментарий у MetadataListArgs: оба required.
+    metaType: str = Field(
+        description=(
+            "ОБЯЗАТЕЛЬНО. Тип коллекции, строго одно из: Catalogs, Documents, InformationRegisters, "
+            "AccumulationRegisters, AccountingRegisters, CalculationRegisters, Reports, DataProcessors, "
+            "ChartsOfCharacteristicTypes, ChartsOfAccounts, ChartsOfCalculationTypes, BusinessProcesses, "
+            "Tasks, ExchangePlans, Enums."
+        )
+    )
+    name: str = Field(
+        min_length=1,
+        description="ОБЯЗАТЕЛЬНО. Точное имя объекта (без учёта регистра), напр. ДоговорыКонтрагентов. "
+        "Пару metaType+name сначала уточни через list_metadata_objects или get_metadata_tree.",
+    )
 
 
 # --- Расширения из feenlace/mcp-1c (MIT) — адаптированы под наш CFE ---
@@ -83,9 +113,12 @@ class GetObjectStructureArgs(BaseModel):
     """Структура одного объекта (синоним get_metadata_structure, имя как в дереве)."""
 
     name: str = Field(
-        min_length=1, description="Имя объекта, например Справочник.Контрагенты или Catalog.Counterparties"
+        min_length=1, description="Имя объекта: короткое (ДоговорыКонтрагентов) или dotted (Справочник...)"
     )
-    objectType: str | None = Field(default=None, description="Тип для уточнения, напр. Catalog, Document, Subsystem")
+    # Наш BSL ищет по имени по 4 коллекциям; objectType — только подсказка,
+    # строгий формат не требуется. Не выдумывай: Catalogs, Documents,
+    # InformationRegisters, AccumulationRegisters.
+    objectType: str | None = Field(default=None, description="Необязательное уточнение типа: Catalogs, Documents...")
 
 
 class ExecuteQueryArgs(BaseModel):

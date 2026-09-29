@@ -59,3 +59,42 @@ def test_registry_rejects_unknown_mode(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "onec_mode", "wat")
     with pytest.raises(ValueError, match="ONEC_MODE"):
         asyncio.run(get_registry())
+
+
+def test_metadata_list_schema_requires_metatype() -> None:
+    """BSL ядра читает Аргументы.metaType безусловно + бэкенд не шлёт None:
+    опущенный metaType = «Поле объекта не обнаружено (metaType)» в 1С (живой лог).
+    Поэтому required в схеме, а не optional."""
+    from pydantic import ValidationError
+
+    from app.onec.schemas import MetadataListArgs
+
+    assert "metaType" in MetadataListArgs.model_json_schema()["required"]
+    with pytest.raises(ValidationError):
+        MetadataListArgs.model_validate({})  # без параметра — отказ до 1С
+    args = MetadataListArgs(metaType="Documents", nameMask="Договор")
+    assert args.metaType == "Documents"
+    desc = MetadataListArgs.model_fields["metaType"].description or ""
+    assert "InformationRegisters" in desc and "Registers" in desc  # явный список + антиподсказка про голое Registers
+
+
+def test_metadata_structure_schema_requires_both() -> None:
+    """СтруктураОбъектаМетаданных читает metaType и name безусловно — оба required."""
+    from pydantic import ValidationError
+
+    from app.onec.schemas import MetadataStructureArgs
+
+    required = MetadataStructureArgs.model_json_schema()["required"]
+    assert "metaType" in required and "name" in required
+    with pytest.raises(ValidationError):
+        MetadataStructureArgs.model_validate({"metaType": "Catalogs"})  # нет name — отказ до 1С
+    ok = MetadataStructureArgs(metaType="Catalogs", name="ДоговорыКонтрагентов")
+    assert ok.name == "ДоговорыКонтрагентов"
+
+
+def test_object_structure_objecttype_hint() -> None:
+    """objectType — только подсказка (наш BSL ищет по имени); в описании реальные имена коллекций."""
+    from app.onec.schemas import GetObjectStructureArgs
+
+    desc = GetObjectStructureArgs.model_fields["objectType"].description or ""
+    assert "Catalogs" in desc and "Subsystem" not in desc
