@@ -10,6 +10,7 @@
 - `infra/` — конфиги инфраструктуры (init-скрипты postgres и т.п.).
 - `onec/` — сторона 1С: XML-исходники CFE-расширения `A1C_Инструменты` (`ext/`): 8 обработок-контейнеров (`a1c_Инструмент*`) + форма чата `a1c_Чат` (startup-check базы, баннер `ПредупреждениеБазы`); инструкции (`README.md`, `DEPLOY.md`, `CHAT.md`, `1c_mcp.md`), смоуки (`smoke_check.py`, `smoke_check_rpc.ps1`, `test_rpc.ps1`).
 - `data/` — локальные референсные выгрузки (OneBridge, feenlace) и прочие данные. В git не коммитится (см. `.gitignore`).
+- `TODO.md` — незакрытые задачи: что чинится, что сломано, что отложено и почему.
 - `.agents/skills/` — скилы 1С-разработки (cc-1c-skills), источник в `skills-lock.json`.
 - `docker-compose.yml` — dev-контур на VPS (postgres всегда; `tei` — профиль `rag`; `mcp-proxy` — профиль `onec`).
 
