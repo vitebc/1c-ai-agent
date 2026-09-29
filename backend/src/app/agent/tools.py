@@ -24,6 +24,9 @@ class ToolContext:
     base_name: str = ""
     # Рантайм-агент (backend/agents/<name>): для RAG-изоляции retrieval.
     agent_name: str = ""
+    # Корень публикации базы (http://host/base) — для тулз, ходящих в 1С сами
+    # (check_extension_freshness). Пусто — штатный путь mock/прокси.
+    base_url: str = ""
 
 
 ToolHandler = Callable[[Any, ToolContext], Coroutine[Any, Any, str]]

@@ -38,6 +38,7 @@ from app.onec import (
     build_agg_tools,
     build_onec_tools,
     fetch_agg_tools,
+    make_ext_freshness_tool,
     make_generic_tool,
     validate_base_url,
 )
@@ -157,7 +158,10 @@ async def _merge_live_registry(client: OnecClient, extra: list[ToolDefinition]) 
 async def get_registry() -> ToolRegistry:
     embeddings = build_embeddings(settings.embeddings_provider, settings.tei_base_url)
     pattern_tool = make_pattern_tool(settings.patterns_dir)
-    extra = [make_kb_search(SessionFactory, embeddings)] + ([pattern_tool] if pattern_tool else [])
+    extra = (
+        [make_kb_search(SessionFactory, embeddings), make_ext_freshness_tool()]
+        + ([pattern_tool] if pattern_tool else [])
+    )
     if settings.onec_mode == "live":
         client = McpOnecClient(settings.onec_mcp_url, token=settings.onec_token)
         return await _merge_live_registry(client, extra)
@@ -192,7 +196,10 @@ async def build_registry_for_root(root: str, client: OnecClient | None = None) -
     """Реестр под уже проверенный корень публикации (см. resolve_base_root)."""
     embeddings = build_embeddings(settings.embeddings_provider, settings.tei_base_url)
     pattern_tool = make_pattern_tool(settings.patterns_dir)
-    extra = [make_kb_search(SessionFactory, embeddings)] + ([pattern_tool] if pattern_tool else [])
+    extra = (
+        [make_kb_search(SessionFactory, embeddings), make_ext_freshness_tool()]
+        + ([pattern_tool] if pattern_tool else [])
+    )
     direct = client or JsonRpcOnecClient(
         root,
         username=settings.onec_username,
@@ -544,6 +551,7 @@ async def chat(
                     user_id=req.user_id,
                     access_profile=profile,
                     base_name=req.base_name or "",
+                    base_url=base_root or "",
                     max_rounds=max_rounds,
                     history=history if history else None,
                     extra_system=extra_system,
@@ -573,6 +581,7 @@ async def chat(
             user_id=req.user_id,
             access_profile=profile,
             base_name=req.base_name or "",
+            base_url=base_root or "",
             max_rounds=max_rounds,
             history=history if history else None,
             extra_system=extra_system,

@@ -108,6 +108,7 @@ async def run_agent(
     skill_name: str = "",
     base_system: str = SYSTEM_PROMPT,
     agent_name: str = "",
+    base_url: str = "",
     max_consecutive_errors: int = 3,
 ) -> AgentResult:
     system = base_system + ("\n\n" + extra_system.strip() if extra_system.strip() else "")
@@ -117,7 +118,13 @@ async def run_agent(
     if history:
         messages.extend(history)
     messages.append({"role": "user", "content": user_message})
-    ctx = ToolContext(user_id=user_id, access_profile=access_profile, base_name=base_name, agent_name=agent_name)
+    ctx = ToolContext(
+        user_id=user_id,
+        access_profile=access_profile,
+        base_name=base_name,
+        agent_name=agent_name,
+        base_url=base_url,
+    )
     called: list[str] = []
     errors = 0
     consec_errors = 0
