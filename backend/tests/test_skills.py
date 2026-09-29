@@ -10,7 +10,8 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 from app.agent import ToolRegistry, run_agent
-from app.api.chat import get_llm, get_registry, get_skill_registry
+from app.agents import AgentRegistry
+from app.api.chat import get_agent_registry, get_llm, get_registry, get_skill_registry
 from app.db.models import ChatSession
 from app.db.session import SessionFactory
 from app.llm import AssistantMessage
@@ -43,15 +44,17 @@ def _write_skill(root: Path, dirname: str, content: str) -> Path:
 
 
 def test_parse_example_skill_from_repo() -> None:
-    """Поставленные скилы обязаны оставаться валидными (без errors)."""
+    """Поставленные скилы валидны: парсятся, name = имя папки.
+
+    Состав (какие скилы лежат в репо) меняется без кода — проверяем
+    только формат, не конкретные имена и текст.
+    """
     reg = SkillRegistry.load(REPO_SKILLS)
     assert not reg.errors, reg.errors
-    skill = reg.get("zakazy-prokudina")
-    assert skill is not None
-    assert skill.description
-    assert "get_counterparty" in skill.tools
-    assert "Заказы клиента" in skill.prompt or "заказ" in skill.prompt.lower()
-    assert "# Скилл: zakazy-prokudina" in skill.system_block
+    for skill in reg.skills:
+        assert skill.name == Path(skill.source).parent.name  # name = имя папки
+        assert skill.description and skill.tools
+        assert f"# Скилл: {skill.name}" in skill.system_block
 
 
 def test_parse_good_file(tmp_path: Path) -> None:
@@ -145,6 +148,16 @@ def test_run_agent_with_skill_block() -> None:
 
 
 def _api_client(tmp_path: Path, script: list[AssistantMessage]) -> tuple[TestClient, FakeLLM]:
+    # Агент из tmp_path — чтобы тесты скилов не зависели от реальных AGENT.md
+    # (состав агентов/скилов меняется без кода).
+    agents_dir = tmp_path / "agents"
+    (agents_dir / "assistant").mkdir(parents=True)
+    (agents_dir / "assistant" / "AGENT.md").write_text(
+        "---\nname: assistant\ntitle: Ассистент\ndescription: общий\n"
+        'tools: [get_counterparty, get_stock_balance]\nskills: ["*"]\n'
+        "mcp: default\nmodel:\n---\n\nПромпт ассистента.\n",
+        encoding="utf-8",
+    )
     _write_skill(
         tmp_path,
         "zakazy",
@@ -154,6 +167,7 @@ def _api_client(tmp_path: Path, script: list[AssistantMessage]) -> tuple[TestCli
     app.dependency_overrides[get_llm] = lambda: fake
     app.dependency_overrides[get_registry] = lambda: ToolRegistry(MOCK_ONEC_TOOLS)
     app.dependency_overrides[get_skill_registry] = lambda: SkillRegistry.load(tmp_path)
+    app.dependency_overrides[get_agent_registry] = lambda: AgentRegistry.load(agents_dir)
     return TestClient(app), fake
 
 

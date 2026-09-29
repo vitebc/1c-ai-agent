@@ -29,12 +29,16 @@ def _write_pattern(root: Path, filename: str, content: str) -> Path:
 
 
 def test_parse_repo_patterns() -> None:
+    """Поставленные паттерны валидны: парсятся, name = имя файла.
+
+    Состав (какие паттерны лежат в репо) меняется без кода — проверяем
+    только формат, не конкретные имена и текст.
+    """
     reg = PatternRegistry.load(REPO_PATTERNS)
     assert not reg.errors, reg.errors
-    pattern = reg.get("query-patterns")
-    assert pattern is not None
-    assert "ДАТА(2026,9,18)" in pattern.text
-    assert "validate_query" in pattern.text
+    for pattern in reg.patterns:
+        assert pattern.name == Path(pattern.source).stem  # name = имя файла
+        assert pattern.description and pattern.text
 
 
 def test_readme_is_skipped_and_bad_files_reported(tmp_path: Path) -> None:

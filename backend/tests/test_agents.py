@@ -22,6 +22,7 @@ from tests.fake_llm import FakeLLM
 from tests.test_chat_api import _parse_sse
 
 REPO_AGENTS = Path(__file__).resolve().parent.parent / "agents"
+REPO_SKILLS = Path(__file__).resolve().parent.parent / "skills"
 
 GOOD_MD = """---
 name: test-agent
@@ -55,31 +56,26 @@ def _write_skill(root: Path, dirname: str, name: str) -> None:
 
 
 def test_parse_repo_agents() -> None:
-    """Три поставленных агента обязаны оставаться валидными."""
+    """Поставленные агенты валидны: парсятся, ссылки на скилы разрешаются.
+
+    Состав (какие агенты/скилы лежат в репо) меняется без кода — проверяем
+    только формат и согласованность, не конкретные имена.
+    """
     reg = AgentRegistry.load(REPO_AGENTS)
     assert not reg.errors, reg.errors
-    assert sorted(reg.names) == ["analyst", "assistant", "tz-helper"]
-    assistant = reg.get("assistant")
-    assert assistant is not None and assistant.allows_all_skills
-    assert assistant.title == "Ассистент"
-    tz = reg.get("tz-helper")
-    assert tz is not None
-    assert tz.tools == ("search_knowledge_base",)
-    assert tz.skills == ()
-    assert not tz.allows_skill("zakazy-prokudina")
-    analyst = reg.get("analyst")
-    assert analyst is not None and "execute_select" in analyst.tools
-    # Дата-агенты обязаны знать про ленивую подгрузку паттерна запросов.
-    for name in ("assistant", "analyst"):
-        agent = reg.get(name)
-        assert agent is not None
-        assert 'get_pattern({"name": "query-patterns"})' in agent.prompt
-        assert "get_pattern" in agent.tools
-        assert agent.max_rounds is None  # дефолт 15
-    tz = reg.get("tz-helper")
-    assert tz is not None and "get_pattern" not in tz.tools
-    assert tz.max_rounds == 8
-    assert AgentRegistry.load(REPO_AGENTS).get("assistant").max_rounds is None  # type: ignore[union-attr]
+    assert reg.names, "в backend/agents должен быть хотя бы один агент"
+    skills_reg = SkillRegistry.load(REPO_SKILLS)
+    known_skills = set(skills_reg.names)
+    for agent in reg.agents:
+        assert agent.name == Path(agent.source).parent.name  # name = имя папки
+        assert agent.title and agent.description
+        assert agent.tools, f"{agent.name}: tools не может быть пустым"
+        assert agent.mcp_servers, f"{agent.name}: mcp не может быть пустым"
+        for skill in agent.skills:
+            if skill != "*":
+                assert skill in known_skills, (
+                    f"{agent.name}: скил {skill!r} не найден в backend/skills ({sorted(known_skills)})"
+                )
 
 
 def test_bad_agent_files_skipped(tmp_path: Path) -> None:
