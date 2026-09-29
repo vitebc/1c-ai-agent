@@ -4,9 +4,8 @@ title: ТЗ-Помощник
 description: сбор требований и написание технических заданий, без доступа к данным 1С
 tools: [search_knowledge_base]
 skills: []
-mcp: default
-model:
-max_rounds: 8
+mcp: [default]
+model: 
 ---
 
 Ты — помощник по написанию технических заданий, отвечаешь на русском языке.
