@@ -163,6 +163,10 @@ def _fallback_registry() -> ToolRegistry:
     напрямую в {base_url}/hs/mcp/rpc. Прокси остаётся опцией (профиль proxy) —
     при включении вручную динамические тулзы базы можно посмотреть через
     GET /tools?base_url=...
+
+    Агрегатор MCP (AGG_MCP_URL) — не 1С, а реестр кодовых тулзов
+    (search-*, rlm, ...): опрашиваем его и здесь. Падение агрегатора чат не
+    роняет — работаем без его тулзов.
     """
     embeddings = build_embeddings(settings.embeddings_provider, settings.tei_base_url)
     pattern_tool = make_pattern_tool(settings.patterns_dir)
@@ -170,13 +174,24 @@ def _fallback_registry() -> ToolRegistry:
         [make_kb_search(SessionFactory, embeddings), make_ext_freshness_tool()]
         + ([pattern_tool] if pattern_tool else [])
     )
+    agg_tools: list[ToolDefinition] = []
+    if settings.agg_mcp_url.strip():
+        try:
+            agg_client = McpOnecClient(settings.agg_mcp_url, token=settings.agg_mcp_token)
+            raw = asyncio.run(
+                fetch_agg_tools(agg_client, settings.agg_mcp_url, settings.agg_mcp_cache_ttl)
+            )
+            for tool in build_agg_tools(agg_client, raw):
+                agg_tools.append(tool)
+        except Exception as e:  # noqa: BLE001 — агрегатор упал: чат живёт без его тулзов
+            log.warning("агрегатор MCP недоступен, работаем без его тулзов: %s", e)
     if settings.onec_mode == "live":
-        # Прокси не опрашиваем: только локальные тулзы. Динамические инструменты
-        # базы подхватываются в чате через build_registry_for_root(base_url).
-        return ToolRegistry(extra)
+        # Прокси не опрашиваем: локальные тулзы + агрегатор. Динамические
+        # инструменты базы подхватываются в чате через build_registry_for_root(base_url).
+        return ToolRegistry(agg_tools + extra)
     if settings.onec_mode != "mock":
         raise ValueError(f"ONEC_MODE: жди 'mock' или 'live', получено {settings.onec_mode!r}")
-    return ToolRegistry(MOCK_ONEC_TOOLS + extra)
+    return ToolRegistry(MOCK_ONEC_TOOLS + agg_tools + extra)
 
 
 async def get_registry() -> ToolRegistry:
