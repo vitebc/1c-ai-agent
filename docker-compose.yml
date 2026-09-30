@@ -69,9 +69,13 @@ services:
   # MCP_ONEC_URL указывает на тестовую базу 1С (Windows-VM пользователя).
   mcp-proxy:
     # Собирается из сабмодуля onec/1c_mcp (пин 5abe316, см. onec/1c_mcp.md).
+    # Вынесен в профиль "proxy": по умолчанию НЕ поднимается — никаких инициативных
+    # обращений к 1С без явного запроса со стороны 1С. Прямые вызовы баз
+    # ({base_url}/hs/mcp/rpc) прокси не нужны; поднять вручную:
+    #   docker compose --profile proxy up -d mcp-proxy
     build: ./onec/1c_mcp
     image: ${MCP_PROXY_IMAGE:-1c-ai-agent-mcp-proxy:local}
-    profiles: ["onec"]
+    profiles: ["proxy"]
     restart: unless-stopped
     environment:
       # Обязательна при использовании профиля onec (иначе прокси некуда ходить).

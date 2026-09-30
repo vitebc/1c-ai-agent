@@ -155,7 +155,15 @@ async def _merge_live_registry(client: OnecClient, extra: list[ToolDefinition]) 
     return ToolRegistry(known + generics + agg_tools + extra)
 
 
-async def get_registry() -> ToolRegistry:
+def _fallback_registry() -> ToolRegistry:
+    """Реестр без обращения к 1С (локальные тулзы + агрегатор, синхронно).
+
+    live-режим через прокси больше не штатный путь: прокси по умолчанию не
+    поднимается (никаких инициативных обращений к 1С), чат с base_url ходит
+    напрямую в {base_url}/hs/mcp/rpc. Прокси остаётся опцией (профиль proxy) —
+    при включении вручную динамические тулзы базы можно посмотреть через
+    GET /tools?base_url=...
+    """
     embeddings = build_embeddings(settings.embeddings_provider, settings.tei_base_url)
     pattern_tool = make_pattern_tool(settings.patterns_dir)
     extra = (
@@ -163,11 +171,17 @@ async def get_registry() -> ToolRegistry:
         + ([pattern_tool] if pattern_tool else [])
     )
     if settings.onec_mode == "live":
-        client = McpOnecClient(settings.onec_mcp_url, token=settings.onec_token)
-        return await _merge_live_registry(client, extra)
+        # Прокси не опрашиваем: только локальные тулзы. Динамические инструменты
+        # базы подхватываются в чате через build_registry_for_root(base_url).
+        return ToolRegistry(extra)
     if settings.onec_mode != "mock":
         raise ValueError(f"ONEC_MODE: жди 'mock' или 'live', получено {settings.onec_mode!r}")
     return ToolRegistry(MOCK_ONEC_TOOLS + extra)
+
+
+async def get_registry() -> ToolRegistry:
+    """Зависимость FastAPI: реестр без обращения к 1С (см. _fallback_registry)."""
+    return _fallback_registry()
 
 
 def resolve_base_root(base_name: str | None, base_url: str | None) -> str | None:
@@ -237,6 +251,16 @@ def scope_registry_for_agent(registry: ToolRegistry, agent: Agent) -> tuple[Tool
     return registry.subset(scoped), rejected
 
 
+def _lazy_registry() -> ToolRegistry:
+    """Реестр без обращения к 1С: локальные тулзы (+ mock-тулзы в mock-режиме).
+
+    Используется как dependency FastAPI до резолва базы — никаких инициативных
+    обращений к 1С. После resolve_base_root чат сам строит реестр конкретной
+    базы (build_registry_for_root).
+    """
+    return _fallback_registry()
+
+
 async def get_skill_registry() -> SkillRegistry:
     # Перечитываем файлы на каждый запрос: новый SKILL.md подхватывается без рестарта.
     return SkillRegistry.load(settings.skills_dir)
@@ -249,7 +273,7 @@ async def get_agent_registry() -> AgentRegistry:
 
 @router.get("/tools")
 async def list_tools(
-    registry: ToolRegistry = Depends(get_registry),  # noqa: B008
+    registry: ToolRegistry = Depends(_lazy_registry),  # noqa: B008
     base_url: str | None = Query(default=None, max_length=256, description="Реестр конкретной базы: прямой JSON-RPC"),
     base_name: str | None = Query(default=None, max_length=128, description="Имя базы: сначала мапа ONEC_BASES"),
 ) -> JSONResponse:
@@ -377,7 +401,7 @@ async def chat(
         default=False, description="Фоновый режим: вернуть job_id и опрашивать GET /chat/result/{job_id}"
     ),
     llm: ChatLLM = Depends(get_llm),  # noqa: B008 — идиома FastAPI
-    registry: ToolRegistry = Depends(get_registry),  # noqa: B008 — идиома FastAPI
+    registry: ToolRegistry = Depends(_lazy_registry),  # noqa: B008 — без обращения к 1С до резолва базы
     skills: SkillRegistry = Depends(get_skill_registry),  # noqa: B008 — идиома FastAPI
     agents: AgentRegistry = Depends(get_agent_registry),  # noqa: B008 — идиома FastAPI
 ) -> Any:
@@ -483,6 +507,11 @@ async def chat(
         # base_root уже проверен выше (мапа → base_url); None — штатный путь.
         if base_root is not None:
             registry = await build_registry_for_root(base_root)
+        elif settings.onec_mode == "live":
+            log.warning(
+                "чат без base_url в live-режиме: прокси не поднят, тулзы 1С недоступны "
+                "(локальные работают). Форма обязана присылать base_url."
+            )
         registry, rejected = scope_registry_for_agent(registry, agent_spec)
         if rejected:
             log.warning("агент %s: отброшены инструменты: %s", agent_spec.name, rejected)

@@ -4,7 +4,7 @@
 
 ИИ-чат-агент для 1С: вопросы на естественном языке → RAG по базе знаний + запросы/отчёты по данным 1С. Пользователи — сотрудники (роли) и внешние клиенты.
 
-Статус: бэкенд + RAG + 1С-слой + чат-клиент + мультиагентность реализованы. Пилот — КА2 (живая база, `tools/list` + реальные JSON-ответы проверены, replay 6/6). Агенты: assistant/analyst/tz-helper (промпт/тулзы/скилы/MCP-источники из `AGENT.md`, RAG-изолированы). Пулы инструментов: прямой JSON-RPC в базу (`default`, ~18 тулзов: курируемые + динамические `a1c_Инструмент*`) + агрегирующий MCP (`server__tool`: search-*, rlm, ...). Маршрутизация мультибазовая: `base_name`+`base_url` из формы → `resolve_base_root` (мапа `ONEC_BASES` → присланный `base_url`), зеркала — отдельные равноправные базы. Сеть Linux↔1С — прямые `{base_url}/hs/mcp/rpc` под `ONEC_USERNAME`/`ONEC_PASSWORD`; прокси (`MCP_ONEC_URL`, профиль `onec`) — fallback/штатный путь без `base_url`; агрегатор — по `AGG_MCP_URL` (см. «Окружение»).
+Статус: бэкенд + RAG + 1С-слой + чат-клиент + мультиагентность реализованы. Пилот — КА2 (живая база, `tools/list` + реальные JSON-ответы проверены, replay 6/6). Агенты: assistant/analyst/tz-helper (промпт/тулзы/скилы/MCP-источники из `AGENT.md`, RAG-изолированы). Пулы инструментов: прямой JSON-RPC в базу (`default`, ~18 тулзов: курируемые + динамические `a1c_Инструмент*`) + агрегирующий MCP (`server__tool`: search-*, rlm, ...). Маршрутизация мультибазовая: `base_name`+`base_url` из формы → `resolve_base_root` (мапа `ONEC_BASES` → присланный `base_url`), зеркала — отдельные равноправные базы. Сеть Linux↔1С — прямые `{base_url}/hs/mcp/rpc` под `ONEC_USERNAME`/`ONEC_PASSWORD`; прокси (`MCP_ONEC_URL`, профиль `proxy`, по умолчанию не поднимается — никаких инициативных обращений к 1С без явного запроса) — fallback-путь чата без `base_url`; агрегатор — по `AGG_MCP_URL` (см. «Окружение»).
 
 ## Жёсткие ограничения
 
@@ -84,7 +84,9 @@ uv run python scripts/smoke_tools.py --live             # прямые вызо�
 docker compose up -d postgres                 # всегда
 docker compose up -d backend                  # + бэкенд (миграции сами, :8000)
 docker compose --profile rag up -d            # + TEI
-docker compose --profile onec up -d           # + MCP-прокси (профиль onec)
+# MCP-прокси по умолчанию НЕ поднимается: никаких инициативных обращений к 1С
+# без явного запроса со стороны 1С. Только при необходимости (fallback-путь
+# чата без base_url): docker compose --profile proxy up -d mcp-proxy
 docker compose logs -f backend
 ```
 

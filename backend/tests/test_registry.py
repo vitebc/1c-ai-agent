@@ -17,25 +17,34 @@ def test_registry_mock_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
     assert "execute_select" not in reg.names  # в моках только 3 курируемых
 
 
-def test_registry_live_builds_without_connecting(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_registry_live_no_initiative_to_1c(monkeypatch: pytest.MonkeyPatch) -> None:
+    """live-режим: реестр без обращения к 1С (прокси не поднят по умолчанию).
+
+    Тулзы базы появляются только через build_registry_for_root(base_url) —
+    при явном запросе из 1С с адресом публикации.
+    """
+    from app.onec.client import McpOnecClient
+
+    def boom(*a: object, **k: object) -> None:
+        raise AssertionError("обращение к 1С без явного запроса недопустимо")
+
     monkeypatch.setattr(settings, "onec_mode", "live")
+    monkeypatch.setattr(McpOnecClient, "list_tools", boom)
     reg = asyncio.run(get_registry())
-    assert set(reg.names) >= {
-        "get_stock_balance",
-        "get_counterparty",
-        "run_skd_report",
-        "execute_select",
-        "validate_query",
-        "search_knowledge_base",
-        "get_pattern",
-    }
+    assert "search_knowledge_base" in reg.names
+    assert "check_extension_freshness" in reg.names
+    assert "execute_select" not in reg.names  # тулзы базы — только с base_url
 
 
-def test_registry_live_merges_dynamic_proxy_tools(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Динамические тулзы из прокси (a1c_Инструмент*) попадают в реестр без кода."""
+def test_registry_base_url_merges_dynamic_tools(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Динамические тулзы базы (a1c_Инструмент*) попадают в реестр по base_url —
+    только при явном запросе с адресом публикации, без прокси."""
 
-    async def fake_list_tools(self: object) -> list[dict[str, object]]:  # noqa: ARG001
-        return [
+    from app.api.chat import build_registry_for_base_url
+    from app.onec.client import FakeOnecClient
+
+    fake = FakeOnecClient(
+        [
             {
                 "name": "a1c_my_new_tool",
                 "description": "Новый тул из 1С",
@@ -43,16 +52,12 @@ def test_registry_live_merges_dynamic_proxy_tools(monkeypatch: pytest.MonkeyPatc
             },
             {"name": "get_stock_balance", "description": "dup", "inputSchema": {"type": "object", "properties": {}}},
         ]
-
-    from app.onec.client import McpOnecClient
-
-    monkeypatch.setattr(settings, "onec_mode", "live")
-    monkeypatch.setattr(McpOnecClient, "list_tools", fake_list_tools)
-    reg = asyncio.run(get_registry())
+    )
+    reg = asyncio.run(build_registry_for_base_url("http://h/base", client=fake))
     assert "a1c_my_new_tool" in reg.names
     schema = next(s for s in reg.schemas() if s["function"]["name"] == "a1c_my_new_tool")
     assert schema["function"]["parameters"]["properties"]["q"]["type"] == "string"
-    assert reg.names.count("get_stock_balance") == 1  # дубликат из прокси не клонируется
+    assert reg.names.count("get_stock_balance") == 1  # дубликат из базы не клонируется
 
 
 def test_registry_rejects_unknown_mode(monkeypatch: pytest.MonkeyPatch) -> None:
