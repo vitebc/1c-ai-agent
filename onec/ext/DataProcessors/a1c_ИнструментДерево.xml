@@ -27,33 +27,5 @@
 			<ExtendedPresentation/>
 			<Explanation/>
 		</Properties>
-		<ChildObjects>
-			<ManagerModule>
-				<CommonAttribute uuid="b7a1e2c4-9d3f-4e6a-8c5b-1f0d9e7a3c21">
-					<Properties>
-						<Name>ВерсияКоммита</Name>
-						<Synonym>
-							<v8:item>
-								<v8:lang>ru</v8:lang>
-								<v8:version>0</v8:version>
-								<v8:value>Версия коммита (ExtVersion.txt)</v8:value>
-							</v8:item>
-						</Synonym>
-						<Comment>Хеш git-коммита, из которого загружено расширение. Заполняется при загрузке из onec/ext/ExtVersion.txt.</Comment>
-						<Type>
-							<v8:Type>
-								<v8:TypeDescription xmlns="http://v8.1c.ru/8.1/coreserv/data/desc">
-									<xs:simpleType xmlns="http://www.w3.org/2001/XMLSchema">
-										<xs:restriction base="v8:StandardTypes.String">
-											<xs:maxLength value="64"/>
-										</xs:restriction>
-									</xs:simpleType>
-								</v8:TypeDescription>
-							</v8:Type>
-						</Type>
-					</Properties>
-				</CommonAttribute>
-			</ManagerModule>
-		</ChildObjects>
 	</DataProcessor>
 </MetaDataObject>
