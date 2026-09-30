@@ -20,7 +20,27 @@ import sys
 import urllib.error
 import urllib.request
 
-EXPECTED_TOOLS = ("get_stock_balance", "get_counterparty", "run_skd_report")
+#: Тулзы, которые обязан дать установленный набор расширений (ядро + A1C_Инструменты).
+#: Остальные (execute_select, get_metadata_tree, ...) — из тех же обработок, но
+#: не критичны для вердикта «расширение установлено».
+EXPECTED_TOOLS = (
+    "get_stock_balance",
+    "get_counterparty",
+    "run_skd_report",
+    "execute_select",
+    "validate_query",
+    "list_metadata_objects",
+    "get_metadata_structure",
+    "get_metadata_tree",
+    "get_configuration_info",
+    "get_object_structure",
+    "execute_query",
+    "get_event_log",
+    "get_object_by_link",
+    "get_link_of_object",
+    "find_references_to_object",
+    "get_access_rights",
+)
 
 
 def _basic(user: str, password: str) -> str:
@@ -52,7 +72,11 @@ def _rpc(base: str, auth: str, timeout: float, method: str, params: dict, call_i
     try:
         return json.loads(raw)
     except ValueError:
-        return {"_not_json": raw[:500]}
+        # 1С отдаёт текст ошибки с BOM (utf-8-sig) — без strip это «не JSON».
+        try:
+            return json.loads(raw.lstrip("\ufeff"))
+        except ValueError:
+            return {"_not_json": raw[:500]}
 
 
 def _is_tool_error(resp: dict) -> str | None:
