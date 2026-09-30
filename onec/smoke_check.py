@@ -49,7 +49,8 @@ def _basic(user: str, password: str) -> str:
 
 
 def _get(url: str, auth: str, timeout: float) -> tuple[int, str]:
-    req = urllib.request.Request(url, headers={"Authorization": auth})
+    headers = {"Authorization": auth} if auth else {}
+    req = urllib.request.Request(url, headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             return resp.status, resp.read().decode("utf-8", "replace")
@@ -59,10 +60,10 @@ def _get(url: str, auth: str, timeout: float) -> tuple[int, str]:
 
 def _rpc(base: str, auth: str, timeout: float, method: str, params: dict, call_id: int) -> dict:
     body = json.dumps({"jsonrpc": "2.0", "id": call_id, "method": method, "params": params}).encode()
-    req = urllib.request.Request(
-        f"{base}/hs/mcp/rpc", data=body,
-        headers={"Authorization": auth, "Content-Type": "application/json"},
-    )
+    headers = {"Content-Type": "application/json"}
+    if auth:
+        headers["Authorization"] = auth
+    req = urllib.request.Request(f"{base}/hs/mcp/rpc", data=body, headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             raw = resp.read().decode("utf-8", "replace")
@@ -101,6 +102,8 @@ def main() -> int:
     ap.add_argument("--sku", default="стул")
     ap.add_argument("--counterparty", default="Ромашка")
     ap.add_argument("--timeout", type=float, default=60.0)
+    ap.add_argument("--no-data-calls", action="store_true",
+                    help="пропустить вызовы, требующие данных (для пустой базы)")
     ap.add_argument("--meta", action="store_true",
                     help="дополнительно выгрузить структуры ключевых объектов КА2")
     args = ap.parse_args()
@@ -113,7 +116,13 @@ def main() -> int:
     print(f"== 1. GET {base}/hs/mcp/health")
     code, body = _get(f"{base}/hs/mcp/health", auth, args.timeout)
     print(f"   HTTP {code}: {body[:200]}")
-    if code != 200:
+    if code == 401:
+        # Публикация без проверки прав (health открыт) — пользователь не существует в ИБ.
+        # Дальше идём без авторизации: tools/list/call покажут, что реально установлено.
+        print("   401: пользователь не существует в ИБ (публикация без проверки прав).")
+        print("   Продолжаю без авторизации — это штатно для пустой базы.")
+        auth = ""
+    elif code != 200:
         print("   FAIL: нет доступа к HTTP-сервису. Проверь публикацию, пользователя и регистр имени базы в URL.")
         return 1
 
@@ -131,11 +140,18 @@ def main() -> int:
         print(f"   FAIL: нет наших инструментов: {missing}. Проверь установку расширения A1C_Инструменты.")
         failures += 1
 
+    # Базовые вызовы: работают на ЛЮБОЙ базе (пустой включительно) — не касаются данных.
     calls = [
-        ("get_stock_balance", {"sku": args.sku, "limit": 5}),
-        ("get_counterparty", {"query": args.counterparty}),
-        ("run_skd_report", {"report": "debtors", "period": "2026-Q1", "limit": 5}),
+        ("get_configuration_info", {}),
+        ("get_extension_version", {}),
     ]
+    if not args.no_data_calls:
+        # Данные: только для рабочей базы с данными (для пустой — пропустить флагом).
+        calls += [
+            ("get_stock_balance", {"sku": args.sku, "limit": 5}),
+            ("get_counterparty", {"query": args.counterparty}),
+            ("run_skd_report", {"report": "debtors", "period": "2026-Q1", "limit": 5}),
+        ]
     for i, (name, call_args) in enumerate(calls, start=10):
         print(f"== {i}. tools/call {name} {json.dumps(call_args, ensure_ascii=False)}")
         resp = _rpc(base, auth, args.timeout, "tools/call",
