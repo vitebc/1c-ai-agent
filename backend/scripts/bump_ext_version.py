@@ -23,7 +23,8 @@ EXT_DIR = REPO_ROOT / "onec" / "ext"
 VERSION_FILE = EXT_DIR / "ExtVersion.txt"
 # Версия захардкожена в менеджере обработки (строка `Версия = "<хеш>"`).
 MANAGER_MODULE = EXT_DIR / "DataProcessors" / "a1c_ИнструментДерево" / "Ext" / "ManagerModule.bsl"
-VERSION_LINE_RE = re.compile(r'^(\tВерсия = ")[0-9a-f]{40}(");', re.MULTILINE)
+# Точка с запятой в конце строки не обязательна (BSL её допускает опустить).
+VERSION_LINE_RE = re.compile(r'^(\tВерсия = ")[0-9a-f]{40}(");?', re.MULTILINE)
 
 
 def _git(*args: str) -> str:

@@ -27,5 +27,6 @@
 			<ExtendedPresentation/>
 			<Explanation/>
 		</Properties>
+		<ChildObjects/>
 	</DataProcessor>
 </MetaDataObject>
