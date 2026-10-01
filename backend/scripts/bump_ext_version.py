@@ -14,17 +14,14 @@
 
 from __future__ import annotations
 
-import re
 import subprocess
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 EXT_DIR = REPO_ROOT / "onec" / "ext"
 VERSION_FILE = EXT_DIR / "ExtVersion.txt"
-# Версия захардкожена в менеджере обработки (строка `Версия = "<хеш>"`).
+# Версия захардкожена в менеджере обработки (строка `Версия = "<хеш>";`).
 MANAGER_MODULE = EXT_DIR / "DataProcessors" / "a1c_ИнструментДерево" / "Ext" / "ManagerModule.bsl"
-# Точка с запятой обязательна: при подстановке она сохраняется из захваченной группы.
-VERSION_LINE_RE = re.compile(r'^(\tВерсия = ")[0-9a-f]{40}(");', re.MULTILINE)
 
 
 def _git(*args: str) -> str:
@@ -50,13 +47,26 @@ def main() -> int:
         commit = _git("rev-parse", "HEAD")
     VERSION_FILE.write_text(commit + "\n", encoding="utf-8")
     # Подставляем хеш в BSL — тулза get_extension_version читает его отсюда.
+    # Строка заменяется целиком по префиксу (без regex-подстановки): `;` не теряется
+    # (subn с захваченными группами терял её по неизвестной причине, регрессия 2026-09-30).
     if MANAGER_MODULE.exists():
         bsl = MANAGER_MODULE.read_text(encoding="utf-8")
-        new_bsl, count = VERSION_LINE_RE.subn(rf"\g<1>{commit}\g<2>", bsl)
-        if count != 1:
-            print(f"ошибка: строка `Версия = \"<хеш>\"` в {MANAGER_MODULE} не найдена (найдено {count})")
+        new_line = f'\tВерсия = "{commit}";'
+        lines = bsl.split("\n")
+        replaced = 0
+        for i, l in enumerate(lines):
+            if l.startswith('\tВерсия = "'):
+                lines[i] = new_line
+                replaced += 1
+        if replaced != 1:
+            print(f"ошибка: строка `Версия = \"<хеш>\"` в {MANAGER_MODULE} не найдена (найдено {replaced})")
             return 1
-        MANAGER_MODULE.write_text(new_bsl, encoding="utf-8")
+        MANAGER_MODULE.write_text("\n".join(lines), encoding="utf-8")
+        # Самопроверка: хеш подставлен и точка с запятой на месте.
+        written = MANAGER_MODULE.read_text(encoding="utf-8")
+        if new_line not in written:
+            print(f"ошибка: самопроверка не прошла, строка `{new_line}` в {MANAGER_MODULE} отсутствует")
+            return 1
     else:
         print(f"ошибка: нет модуля менеджера {MANAGER_MODULE}")
         return 1
