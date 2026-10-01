@@ -5,7 +5,8 @@ from __future__ import annotations
 from datetime import datetime
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import ForeignKey, String, Text, func
+from sqlalchemy import Float, ForeignKey, Integer, String, Text, func
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 EMBEDDING_DIM = 1024  # deepvk/USER-bge-m3; fake-эмбеддинги той же размерности
@@ -73,3 +74,29 @@ class Chunk(Base):
     position: Mapped[int] = mapped_column(default=0)
     text: Mapped[str] = mapped_column(Text)
     embedding: Mapped[Vector] = mapped_column(Vector(EMBEDDING_DIM))
+
+
+class ChatRequest(Base):
+    """Статистика одного обращения /chat. Заполняется после завершения запроса."""
+
+    __tablename__ = "chat_requests"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(128), index=True)
+    session_id: Mapped[int | None] = mapped_column(Integer, default=None)
+    base_name: Mapped[str | None] = mapped_column(String(128), default=None, index=True)
+    base_url: Mapped[str | None] = mapped_column(String(256), default=None)
+    agent: Mapped[str | None] = mapped_column(String(64), default=None, index=True)
+    skill: Mapped[str | None] = mapped_column(String(64), default=None)
+    model: Mapped[str | None] = mapped_column(String(128), default=None)
+    question: Mapped[str] = mapped_column(Text)
+    answer: Mapped[str | None] = mapped_column(Text, default=None)
+    status: Mapped[str] = mapped_column(String(16), default="ok")
+    error: Mapped[str | None] = mapped_column(Text, default=None)
+    prompt_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    completion_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    total_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    rounds: Mapped[int] = mapped_column(Integer, default=0)
+    tool_calls: Mapped[list[str] | None] = mapped_column(JSONB, default=None)
+    elapsed_s: Mapped[float] = mapped_column(Float, default=0.0)
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now(), index=True)

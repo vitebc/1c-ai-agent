@@ -27,7 +27,7 @@ from app.agent import SYSTEM_PROMPT, AgentResult, ToolRegistry, run_agent
 from app.agent.tools import ToolDefinition
 from app.agents import Agent, AgentRegistry
 from app.config import settings
-from app.db.models import ChatSession, Message, User
+from app.db.models import ChatRequest, ChatSession, Message, User
 from app.db.session import SessionFactory
 from app.llm import ChatLLM, OpenAICompatibleLLM
 from app.llm.client import build_user_content
@@ -54,6 +54,47 @@ log = logging.getLogger("agent1c.chat")
 # In-memory store для фоновых задач (достаточно для совместимости с BSL).
 # Потокобезопасность не нужна — один процесс, GIL.
 _background_jobs: dict[str, dict[str, Any]] = {}
+
+
+async def _record_request(
+    user_id: str,
+    session_id: int | None,
+    base_name: str | None,
+    base_url: str | None,
+    agent: str,
+    skill: str,
+    model: str,
+    question: str,
+    result: AgentResult | None,
+    elapsed_s: float,
+    error: str | None = None,
+) -> None:
+    """Запись статистики запроса в chat_requests. Ошибка записи не ломает чат."""
+    try:
+        async with SessionFactory() as s:
+            row = ChatRequest(
+                user_id=user_id,
+                session_id=session_id,
+                base_name=base_name,
+                base_url=base_url,
+                agent=agent or None,
+                skill=skill or None,
+                model=model or None,
+                question=question[:500],
+                answer=(result.answer[:500] if result and result.answer else None),
+                status="error" if error else "ok",
+                error=error[:1000] if error else None,
+                prompt_tokens=result.prompt_tokens if result else 0,
+                completion_tokens=result.completion_tokens if result else 0,
+                total_tokens=(result.prompt_tokens + result.completion_tokens) if result else 0,
+                rounds=result.rounds if result else 0,
+                tool_calls=result.tool_calls if result else None,
+                elapsed_s=elapsed_s,
+            )
+            s.add(row)
+            await s.commit()
+    except Exception:  # noqa: BLE001
+        log.warning("не удалось записать chat_requests", exc_info=True)
 
 
 class Attachment(BaseModel):
@@ -607,11 +648,23 @@ async def chat(
                 async with SessionFactory() as s:
                     s.add(Message(session_id=session_id, role="assistant", content=result.answer))
                     await s.commit()
+                elapsed_bg = round(time.monotonic() - started, 1)
                 _background_jobs[job_id].update(
-                    {"status": "done", "elapsed_s": round(time.monotonic() - started, 1), "result": result}
+                    {"status": "done", "elapsed_s": elapsed_bg, "result": result}
+                )
+                await _record_request(
+                    user_id=req.user_id, session_id=session_id, base_name=req.base_name,
+                    base_url=base_root, agent=agent_name, skill=skill_name, model=model_name,
+                    question=req.message, result=result, elapsed_s=elapsed_bg,
                 )
             except Exception as e:  # noqa: BLE001
                 _background_jobs[job_id].update({"status": "error", "error": str(e)})
+                await _record_request(
+                    user_id=req.user_id, session_id=session_id, base_name=req.base_name,
+                    base_url=base_root, agent=agent_name, skill=skill_name, model=model_name,
+                    question=req.message, result=None,
+                    elapsed_s=round(time.monotonic() - started, 1), error=str(e),
+                )
 
         asyncio.create_task(_run_bg())
         return JSONResponse({"job_id": job_id, "session_id": session_id, "status": "running", "agent": agent_name})
@@ -649,6 +702,15 @@ async def chat(
         await session.commit()
 
     elapsed_s = round(time.monotonic() - started, 1)
+    # Статистика: пишем до отдачи SSE (быстро, не блокирует стриминг).
+    err_str = None
+    if result.rounds == 0 and result.tool_errors > 0 and "Ошибка обращения" in (result.answer or ""):
+        err_str = result.answer[:500]
+    await _record_request(
+        user_id=req.user_id, session_id=session_id, base_name=req.base_name,
+        base_url=base_root, agent=agent_name, skill=skill_name, model=model_name,
+        question=req.message, result=result, elapsed_s=elapsed_s, error=err_str,
+    )
     return StreamingResponse(
         _events(session_id, result, skill_name, agent_name, model_name, elapsed_s),
         media_type="text/event-stream",
