@@ -54,8 +54,8 @@ def main() -> int:
         new_line = f'\tВерсия = "{commit}";'
         lines = bsl.split("\n")
         replaced = 0
-        for i, l in enumerate(lines):
-            if l.startswith('\tВерсия = "'):
+        for i, line in enumerate(lines):
+            if line.startswith('\tВерсия = "'):
                 lines[i] = new_line
                 replaced += 1
         if replaced != 1:
