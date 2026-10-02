@@ -24,8 +24,10 @@
 3. Пользователь 1С с read-only профилем для агента (см. AGENTS.md, «Схема запросов»).
 4. Сетевой доступ с VPS до VM по HTTP(S). Основной путь — прямые вызовы бэкенда
    в `{base_url}/hs/mcp/rpc` под `ONEC_USERNAME`/`ONEC_PASSWORD` (форма сама шлёт
-   `base_url`; нестандартные публикации — через `ONEC_BASES` в `.env`).
-   Fallback/штатный путь без `base_url` — через MCP-прокси (адрес в `MCP_ONEC_URL`).
+    `base_url`; нестандартные публикации — через мапу `ONEC_BASES`).
+    Мапа баз — hot-reload: файл `backend/bases.conf` (env `ONEC_BASES_FILE`)
+    перечитывается бэкендом по mtime (TTL 2с), правка на хосте подхватывается
+    без рестарта; нет файла → fallback на `ONEC_BASES` из `.env`.
 
 Проверка связности с VPS:
 

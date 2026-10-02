@@ -1,4 +1,5 @@
 from app.onec.aggregated import build_agg_tools, clear_agg_cache, fetch_agg_tools, split_server
+from app.onec.bases import get_bases_map
 from app.onec.client import FakeOnecClient, McpOnecClient, OnecClient, OnecError
 from app.onec.direct import JsonRpcOnecClient, parse_bases_map, validate_base_url
 from app.onec.ext_version import make_ext_freshness_tool, read_git_ext_version
@@ -19,6 +20,7 @@ __all__ = [
     "build_onec_tools",
     "clear_agg_cache",
     "fetch_agg_tools",
+    "get_bases_map",
     "make_ext_freshness_tool",
     "make_generic_tool",
     "parse_bases_map",

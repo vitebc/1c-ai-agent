@@ -170,9 +170,12 @@ def test_config_rejects_bad_map() -> None:
 
 def test_resolve_base_root_order(monkeypatch: pytest.MonkeyPatch) -> None:
     from app.api.chat import resolve_base_root
-    from app.config import settings
+    from app.onec import bases as bases_mod
 
-    monkeypatch.setattr(settings, "onec_bases", "ca2=http://192.168.0.178:8080/ca2")
+    # Мапа теперь hot (app.onec.bases): переопределяем get_bases_map напрямую.
+    monkeypatch.setattr(
+        bases_mod, "get_bases_map", lambda: {"ca2": "http://192.168.0.178:8080/ca2"}
+    )
     # Мапа побеждает присланный адрес.
     assert resolve_base_root("ca2", "http://other/h") == "http://192.168.0.178:8080/ca2"
     assert resolve_base_root("CA2", None) == "http://192.168.0.178:8080/ca2"
@@ -200,11 +203,11 @@ def test_chat_unresolvable_base_400_no_session(monkeypatch: pytest.MonkeyPatch) 
 
     from sqlalchemy import func, select
 
-    from app.config import settings
     from app.db.models import ChatSession
     from app.db.session import SessionFactory, engine
+    from app.onec import bases as bases_mod
 
-    monkeypatch.setattr(settings, "onec_bases", "")
+    monkeypatch.setattr(bases_mod, "get_bases_map", lambda: {})
     fake = FakeLLM([AssistantMessage(content="ok")])
     app.dependency_overrides[get_llm] = lambda: fake
     app.dependency_overrides[get_registry] = lambda: ToolRegistry(MOCK_ONEC_TOOLS)
@@ -230,9 +233,11 @@ def test_chat_unresolvable_base_400_no_session(monkeypatch: pytest.MonkeyPatch) 
 
 
 def test_tools_by_base_name_uses_map(monkeypatch: pytest.MonkeyPatch) -> None:
-    from app.config import settings
+    from app.onec import bases as bases_mod
 
-    monkeypatch.setattr(settings, "onec_bases", "ca2=http://127.0.0.1:9/ca2")  # закрытый порт: быстрый refused
+    monkeypatch.setattr(
+        bases_mod, "get_bases_map", lambda: {"ca2": "http://127.0.0.1:9/ca2"}
+    )  # закрытый порт: быстрый refused
     fake = FakeLLM([AssistantMessage(content="ok")])
     app.dependency_overrides[get_llm] = lambda: fake
     app.dependency_overrides[get_registry] = lambda: ToolRegistry(MOCK_ONEC_TOOLS)

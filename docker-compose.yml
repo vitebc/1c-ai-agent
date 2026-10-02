@@ -24,6 +24,10 @@ services:
       - ./backend/agents:/app/agents:ro
       - ./backend/skills:/app/skills:ro
       - ./backend/patterns:/app/patterns:ro
+      # Мапа баз ONEC_BASES — hot-reload: бэкенд перечитывает файл по mtime (TTL 2с),
+      # правка на хосте подхватывается без рестарта контейнера. Файл опционален:
+      # нет файла -> fallback на ONEC_BASES из .env (стартовое значение).
+      - ./backend/bases.conf:/app/bases.conf:ro
     depends_on:
       postgres:
         condition: service_healthy

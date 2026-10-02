@@ -42,6 +42,7 @@ from app.onec import (
     make_generic_tool,
     validate_base_url,
 )
+from app.onec import bases as onec_bases
 from app.patterns import make_pattern_tool
 from app.rag import build_embeddings, make_kb_search
 from app.skills import Skill, SkillRegistry
@@ -246,13 +247,17 @@ def resolve_base_root(base_name: str | None, base_url: str | None) -> str | None
     Порядок: мапа исключений ONEC_BASES (побеждает присланное) → валидный base_url
     из запроса. Имя есть, а адреса нигде нет (файловая ИБ, кривой запрос) — ValueError
     с эхом пришедшего (эндпоинт отдаёт 400): молча отвечать чужой базой хуже ошибки.
+
+    Мапа берётся из app.onec.bases: файл ONEC_BASES_FILE перечитывается на лету
+    (hot-reload без рестарта), fallback — ONEC_BASES из .env.
     """
     name = (base_name or "").strip().lower()
     url = (base_url or "").strip()
     if not name and not url:
         return None
-    if name and name in settings.onec_base_map:
-        return settings.onec_base_map[name]
+    base_map = onec_bases.get_bases_map()
+    if name and name in base_map:
+        return base_map[name]
     if url:
         return validate_base_url(url)  # ValueError -> 400 в эндпоинте
     raise ValueError(

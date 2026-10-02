@@ -16,6 +16,8 @@ data/
 .env
 !.env.example
 .env.bak-*
+# Локальная hot-мапа баз (адреса публикаций — не коммитим)
+backend/bases.conf
 
 # IDE
 .idea/
