@@ -12,7 +12,7 @@ from fastapi import APIRouter, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import ChatRequest
+from app.db.models import ChatRequestLog
 from app.db.session import SessionFactory
 
 router = APIRouter(prefix="/stats", tags=["stats"])
@@ -38,26 +38,26 @@ async def list_requests(
         to = to.replace(tzinfo=None)
 
     async with SessionFactory() as s:
-        q = select(ChatRequest)
+        q = select(ChatRequestLog)
         if user_id:
-            q = q.where(ChatRequest.user_id == user_id)
+            q = q.where(ChatRequestLog.user_id == user_id)
         if base_name:
-            q = q.where(ChatRequest.base_name == base_name)
+            q = q.where(ChatRequestLog.base_name == base_name)
         if agent:
-            q = q.where(ChatRequest.agent == agent)
+            q = q.where(ChatRequestLog.agent == agent)
         if skill:
-            q = q.where(ChatRequest.skill == skill)
+            q = q.where(ChatRequestLog.skill == skill)
         if status:
-            q = q.where(ChatRequest.status == status)
+            q = q.where(ChatRequestLog.status == status)
         if from_:
-            q = q.where(ChatRequest.created_at >= from_)
+            q = q.where(ChatRequestLog.created_at >= from_)
         if to:
-            q = q.where(ChatRequest.created_at <= to)
+            q = q.where(ChatRequestLog.created_at <= to)
 
         total = (await s.execute(select(func.count()).select_from(q.subquery()))).scalar() or 0
 
         rows = (
-            (await s.execute(q.order_by(ChatRequest.created_at.desc()).limit(limit).offset(offset)))
+            (await s.execute(q.order_by(ChatRequestLog.created_at.desc()).limit(limit).offset(offset)))
             .scalars()
             .all()
         )
@@ -107,40 +107,40 @@ async def summary(
         to = to.replace(tzinfo=None)
 
     async with SessionFactory() as s:
-        base_q = select(ChatRequest).where(ChatRequest.created_at >= from_, ChatRequest.created_at <= to)
+        base_q = select(ChatRequestLog).where(ChatRequestLog.created_at >= from_, ChatRequestLog.created_at <= to)
 
         total_row = (await s.execute(select(func.count()).select_from(base_q.subquery()))).scalar() or 0
         tokens_row = (await s.execute(
             select(
-                func.coalesce(func.sum(ChatRequest.total_tokens), 0),
-                func.avg(ChatRequest.elapsed_s),
-            ).where(ChatRequest.created_at >= from_, ChatRequest.created_at <= to)
+                func.coalesce(func.sum(ChatRequestLog.total_tokens), 0),
+                func.avg(ChatRequestLog.elapsed_s),
+            ).where(ChatRequestLog.created_at >= from_, ChatRequestLog.created_at <= to)
         )).one()
 
         by_user_rows = (await s.execute(
             select(
-                ChatRequest.user_id,
+                ChatRequestLog.user_id,
                 func.count().label("count"),
-                func.coalesce(func.sum(ChatRequest.total_tokens), 0).label("tokens"),
+                func.coalesce(func.sum(ChatRequestLog.total_tokens), 0).label("tokens"),
             )
-            .where(ChatRequest.created_at >= from_, ChatRequest.created_at <= to)
-            .group_by(ChatRequest.user_id)
+            .where(ChatRequestLog.created_at >= from_, ChatRequestLog.created_at <= to)
+            .group_by(ChatRequestLog.user_id)
             .order_by(func.count().desc())
             .limit(50)
         )).all()
 
-        base_label = func.coalesce(ChatRequest.base_name, "(без базы)").label("base_name")
+        base_label = func.coalesce(ChatRequestLog.base_name, "(без базы)").label("base_name")
         by_base_rows = (await s.execute(
             select(base_label, func.count())
-            .where(ChatRequest.created_at >= from_, ChatRequest.created_at <= to)
+            .where(ChatRequestLog.created_at >= from_, ChatRequestLog.created_at <= to)
             .group_by(base_label)
             .order_by(func.count().desc())
         )).all()
 
-        agent_label = func.coalesce(ChatRequest.agent, "(default)").label("agent")
+        agent_label = func.coalesce(ChatRequestLog.agent, "(default)").label("agent")
         by_agent_rows = (await s.execute(
             select(agent_label, func.count())
-            .where(ChatRequest.created_at >= from_, ChatRequest.created_at <= to)
+            .where(ChatRequestLog.created_at >= from_, ChatRequestLog.created_at <= to)
             .group_by(agent_label)
             .order_by(func.count().desc())
         )).all()
@@ -164,15 +164,15 @@ async def distinct_values() -> dict:
     """Списки для фильтров UI: уникальные user_id, base_name, agent."""
     async with SessionFactory() as s:
         users = (await s.execute(
-            select(ChatRequest.user_id).distinct().order_by(ChatRequest.user_id)
+            select(ChatRequestLog.user_id).distinct().order_by(ChatRequestLog.user_id)
         )).scalars().all()
         bases = (await s.execute(
-            select(ChatRequest.base_name).where(ChatRequest.base_name.isnot(None))
-            .distinct().order_by(ChatRequest.base_name)
+            select(ChatRequestLog.base_name).where(ChatRequestLog.base_name.isnot(None))
+            .distinct().order_by(ChatRequestLog.base_name)
         )).scalars().all()
         agents = (await s.execute(
-            select(ChatRequest.agent).where(ChatRequest.agent.isnot(None))
-            .distinct().order_by(ChatRequest.agent)
+            select(ChatRequestLog.agent).where(ChatRequestLog.agent.isnot(None))
+            .distinct().order_by(ChatRequestLog.agent)
         )).scalars().all()
 
     return {

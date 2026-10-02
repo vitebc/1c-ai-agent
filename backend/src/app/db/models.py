@@ -76,7 +76,7 @@ class Chunk(Base):
     embedding: Mapped[Vector] = mapped_column(Vector(EMBEDDING_DIM))
 
 
-class ChatRequest(Base):
+class ChatRequestLog(Base):
     """Статистика одного обращения /chat. Заполняется после завершения запроса."""
 
     __tablename__ = "chat_requests"

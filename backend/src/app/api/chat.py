@@ -27,7 +27,7 @@ from app.agent import SYSTEM_PROMPT, AgentResult, ToolRegistry, run_agent
 from app.agent.tools import ToolDefinition
 from app.agents import Agent, AgentRegistry
 from app.config import settings
-from app.db.models import ChatRequest, ChatSession, Message, User
+from app.db.models import ChatRequestLog, ChatSession, Message, User
 from app.db.session import SessionFactory
 from app.llm import ChatLLM, OpenAICompatibleLLM
 from app.llm.client import build_user_content
@@ -72,7 +72,7 @@ async def _record_request(
     """Запись статистики запроса в chat_requests. Ошибка записи не ломает чат."""
     try:
         async with SessionFactory() as s:
-            row = ChatRequest(
+            row = ChatRequestLog(
                 user_id=user_id,
                 session_id=session_id,
                 base_name=base_name,
