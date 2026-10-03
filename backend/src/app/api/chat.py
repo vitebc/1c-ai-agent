@@ -57,6 +57,14 @@ log = logging.getLogger("agent1c.chat")
 _background_jobs: dict[str, dict[str, Any]] = {}
 
 
+# Префиксы user_id из тестов — не пишем их в статистику.
+_TEST_USER_PREFIXES = ("test-", "agent-u", "skill-u")
+
+
+def _is_test_user(user_id: str) -> bool:
+    return any(user_id.startswith(p) for p in _TEST_USER_PREFIXES)
+
+
 async def _record_request(
     user_id: str,
     session_id: int | None,
@@ -71,6 +79,8 @@ async def _record_request(
     error: str | None = None,
 ) -> None:
     """Запись статистики запроса в chat_requests. Ошибка записи не ломает чат."""
+    if _is_test_user(user_id):
+        return
     try:
         async with SessionFactory() as s:
             row = ChatRequestLog(
