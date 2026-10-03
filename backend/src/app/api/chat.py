@@ -18,7 +18,7 @@ import uuid
 from collections.abc import AsyncIterator
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select
@@ -26,6 +26,7 @@ from sqlalchemy import select
 from app.agent import SYSTEM_PROMPT, AgentResult, ToolRegistry, run_agent
 from app.agent.tools import ToolDefinition
 from app.agents import Agent, AgentRegistry
+from app.auth.jwt import extract_bearer_token, validate_hs256
 from app.config import settings
 from app.db.models import ChatRequestLog, ChatSession, Message, User
 from app.db.session import SessionFactory
@@ -43,6 +44,7 @@ from app.onec import (
     validate_base_url,
 )
 from app.onec import bases as onec_bases
+from app.onec.creds import get_user_password
 from app.patterns import make_pattern_tool
 from app.rag import build_embeddings, make_kb_search
 from app.skills import Skill, SkillRegistry
@@ -222,17 +224,14 @@ def _fallback_registry() -> ToolRegistry:
     """
     embeddings = build_embeddings(settings.embeddings_provider, settings.tei_base_url)
     pattern_tool = make_pattern_tool(settings.patterns_dir)
-    extra = (
-        [make_kb_search(SessionFactory, embeddings), make_ext_freshness_tool()]
-        + ([pattern_tool] if pattern_tool else [])
+    extra = [make_kb_search(SessionFactory, embeddings), make_ext_freshness_tool()] + (
+        [pattern_tool] if pattern_tool else []
     )
     agg_tools: list[ToolDefinition] = []
     if settings.agg_mcp_url.strip():
         try:
             agg_client = McpOnecClient(settings.agg_mcp_url, token=settings.agg_mcp_token)
-            raw = asyncio.run(
-                fetch_agg_tools(agg_client, settings.agg_mcp_url, settings.agg_mcp_cache_ttl)
-            )
+            raw = asyncio.run(fetch_agg_tools(agg_client, settings.agg_mcp_url, settings.agg_mcp_cache_ttl))
             for tool in build_agg_tools(agg_client, raw):
                 agg_tools.append(tool)
         except Exception as e:  # noqa: BLE001 — агрегатор упал: чат живёт без его тулзов
@@ -277,20 +276,60 @@ def resolve_base_root(base_name: str | None, base_url: str | None) -> str | None
     )
 
 
-async def build_registry_for_root(root: str, client: OnecClient | None = None) -> ToolRegistry:
-    """Реестр под уже проверенный корень публикации (см. resolve_base_root)."""
+def resolve_onec_creds(req_user_id: str, auth_header: str | None = None) -> tuple[str, str | None]:
+    """Креды 1С для запроса: per-user (JWT) или сервисный fallback.
+
+    Порядок:
+    1. JWT_SECRET задан + валидный Bearer-токен → sub из токена, пароль из creds.
+       Нет пароля → ValueError (403): не деградируем до agent — это обман по правам.
+    2. JWT_SECRET задан, но токена нет / невалиден → ValueError (401).
+    3. JWT_SECRET пуст (dev) → сервисный ONEC_USERNAME/PASSWORD.
+
+    Возвращает (username, password).
+    """
+    if settings.jwt_secret:
+        token = extract_bearer_token(auth_header)
+        if token is None:
+            raise ValueError("нет JWT-токена в заголовке Authorization (per-user RLS включён)")
+        payload = validate_hs256(token, settings.jwt_secret)
+        if payload is None:
+            raise ValueError("невалидный JWT-токен (подпись или срок действия)")
+        sub = str(payload.get("sub", "")).strip()
+        if not sub:
+            raise ValueError("JWT без поля sub")
+        password = get_user_password(sub)
+        if password is None:
+            raise ValueError(f"нет кредов 1С для пользователя {sub!r}: добавьте login=pass в creds.conf")
+        log.info("per-user RLS: запрос от %s (JWT)", sub)
+        return sub, password
+    # Dev-режим: сервисный пользователь.
+    return settings.onec_username, settings.onec_password
+
+
+async def build_registry_for_root(
+    root: str, client: OnecClient | None = None, onec_user: str | None = None
+) -> ToolRegistry:
+    """Реестр под уже проверенный корень публикации (см. resolve_base_root).
+
+    onec_user — логин пользователя 1С для per-user RLS; None → сервисный fallback.
+    """
     embeddings = build_embeddings(settings.embeddings_provider, settings.tei_base_url)
     pattern_tool = make_pattern_tool(settings.patterns_dir)
-    extra = (
-        [make_kb_search(SessionFactory, embeddings), make_ext_freshness_tool()]
-        + ([pattern_tool] if pattern_tool else [])
+    extra = [make_kb_search(SessionFactory, embeddings), make_ext_freshness_tool()] + (
+        [pattern_tool] if pattern_tool else []
     )
-    direct = client or JsonRpcOnecClient(
-        root,
-        username=settings.onec_username,
-        password=settings.onec_password,
-    )
-    log.info("реестр инструментов базы: %s", root)
+    if client is not None:
+        direct = client
+    elif onec_user is not None:
+        password = get_user_password(onec_user)
+        direct = JsonRpcOnecClient(root, username=onec_user, password=password or "")
+    else:
+        direct = JsonRpcOnecClient(
+            root,
+            username=settings.onec_username,
+            password=settings.onec_password,
+        )
+    log.info("реестр инструментов базы: %s (user=%s)", root, onec_user or settings.onec_username)
     return await _merge_live_registry(direct, extra)
 
 
@@ -471,6 +510,7 @@ async def chat(
     background: bool = Query(
         default=False, description="Фоновый режим: вернуть job_id и опрашивать GET /chat/result/{job_id}"
     ),
+    authorization: str | None = Header(default=None),  # noqa: B008 — JWT per-user RLS
     llm: ChatLLM = Depends(get_llm),  # noqa: B008 — идиома FastAPI
     registry: ToolRegistry = Depends(_lazy_registry),  # noqa: B008 — без обращения к 1С до резолва базы
     skills: SkillRegistry = Depends(get_skill_registry),  # noqa: B008 — идиома FastAPI
@@ -486,6 +526,12 @@ async def chat(
         base_root = resolve_base_root(req.base_name, req.base_url)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
+    # Per-user RLS: JWT → креды 1С. Ошибка токена — 401/403 до сессии и эмбеддингов.
+    try:
+        onec_user, _onec_pass = resolve_onec_creds(req.user_id, authorization)
+    except ValueError as e:
+        code = 403 if "нет кредов" in str(e) else 401
+        raise HTTPException(status_code=code, detail=str(e)) from e
     # Создаём/находим сессию и грузим историю
     async with SessionFactory() as session:
         user = (await session.execute(select(User).where(User.onec_id == req.user_id))).scalar_one_or_none()
@@ -577,7 +623,7 @@ async def chat(
         # Вопрос из базы X отвечает база X: прямой JSON-RPC в её публикацию.
         # base_root уже проверен выше (мапа → base_url); None — штатный путь.
         if base_root is not None:
-            registry = await build_registry_for_root(base_root)
+            registry = await build_registry_for_root(base_root, onec_user=onec_user)
         elif settings.onec_mode == "live":
             log.warning(
                 "чат без base_url в live-режиме: прокси не поднят, тулзы 1С недоступны "
@@ -664,21 +710,33 @@ async def chat(
                     s.add(Message(session_id=session_id, role="assistant", content=result.answer))
                     await s.commit()
                 elapsed_bg = round(time.monotonic() - started, 1)
-                _background_jobs[job_id].update(
-                    {"status": "done", "elapsed_s": elapsed_bg, "result": result}
-                )
+                _background_jobs[job_id].update({"status": "done", "elapsed_s": elapsed_bg, "result": result})
                 await _record_request(
-                    user_id=req.user_id, session_id=session_id, base_name=req.base_name,
-                    base_url=base_root, agent=agent_name, skill=skill_name, model=model_name,
-                    question=req.message, result=result, elapsed_s=elapsed_bg,
+                    user_id=req.user_id,
+                    session_id=session_id,
+                    base_name=req.base_name,
+                    base_url=base_root,
+                    agent=agent_name,
+                    skill=skill_name,
+                    model=model_name,
+                    question=req.message,
+                    result=result,
+                    elapsed_s=elapsed_bg,
                 )
             except Exception as e:  # noqa: BLE001
                 _background_jobs[job_id].update({"status": "error", "error": str(e)})
                 await _record_request(
-                    user_id=req.user_id, session_id=session_id, base_name=req.base_name,
-                    base_url=base_root, agent=agent_name, skill=skill_name, model=model_name,
-                    question=req.message, result=None,
-                    elapsed_s=round(time.monotonic() - started, 1), error=str(e),
+                    user_id=req.user_id,
+                    session_id=session_id,
+                    base_name=req.base_name,
+                    base_url=base_root,
+                    agent=agent_name,
+                    skill=skill_name,
+                    model=model_name,
+                    question=req.message,
+                    result=None,
+                    elapsed_s=round(time.monotonic() - started, 1),
+                    error=str(e),
                 )
 
         asyncio.create_task(_run_bg())
@@ -722,9 +780,17 @@ async def chat(
     if result.rounds == 0 and result.tool_errors > 0 and "Ошибка обращения" in (result.answer or ""):
         err_str = result.answer[:500]
     await _record_request(
-        user_id=req.user_id, session_id=session_id, base_name=req.base_name,
-        base_url=base_root, agent=agent_name, skill=skill_name, model=model_name,
-        question=req.message, result=result, elapsed_s=elapsed_s, error=err_str,
+        user_id=req.user_id,
+        session_id=session_id,
+        base_name=req.base_name,
+        base_url=base_root,
+        agent=agent_name,
+        skill=skill_name,
+        model=model_name,
+        question=req.message,
+        result=result,
+        elapsed_s=elapsed_s,
+        error=err_str,
     )
     return StreamingResponse(
         _events(session_id, result, skill_name, agent_name, model_name, elapsed_s),

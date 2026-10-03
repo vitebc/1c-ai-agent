@@ -18,6 +18,8 @@ data/
 .env.bak-*
 # Локальная hot-мапа баз (адреса публикаций — не коммитим)
 backend/bases.conf
+# Локальная hot-мапа кредов 1С per-user (пароли — не коммитим)
+backend/creds.conf
 
 # IDE
 .idea/

@@ -68,6 +68,14 @@ class Settings(BaseSettings):
         """Имя базы (НРег) -> корень публикации. Только исключения из ONEC_BASES."""
         return parse_bases_map(self.onec_bases)
 
+    # JWT-аутентификация формы 1С (per-user RLS). Ключ HS256 (Base64) — тот же,
+    # что в BSL a1c_ЧатФоновый.КлючПодписиТокена(). Пусто — JWT не проверяется
+    # (dev-режим: fallback на ONEC_USERNAME/PASSWORD).
+    jwt_secret: str = ""
+    # Maпа кредов 1С per-user: "login=pass;...". Fallback при пустом файле
+    # creds.conf (hot-reload, см. app/onec/creds.py).
+    onec_credentials: str = ""
+
     # Агрегирующий MCP-сервер (подсерверы server__tool, напр. search-ka-update, rlm).
     # Пусто — отключён. Агент выбирает подсерверы полем mcp в AGENT.md.
     agg_mcp_url: str = ""
