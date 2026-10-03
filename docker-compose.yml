@@ -8,9 +8,11 @@
 services:
   backend:
     build: ./backend
+    image: 1c-ai-agent-backend:prod
     restart: unless-stopped
     env_file: .env
     environment:
+      ENVIRONMENT: prod
       # Внутри compose backend ходит на postgres по имени сервиса, а не на localhost.
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-agent}:${POSTGRES_PASSWORD:-agent}@postgres:5432/${POSTGRES_DB:-agentdb}
       # Внутри compose-сети прокси доступен как mcp-proxy:8000, а не localhost (localhost = сам backend).
