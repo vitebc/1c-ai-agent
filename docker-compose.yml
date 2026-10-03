@@ -30,9 +30,6 @@ services:
       # правка на хосте подхватывается без рестарта контейнера. Файл опционален:
       # нет файла -> fallback на ONEC_BASES из .env (стартовое значение).
       - ./backend/bases.conf:/app/bases.conf:ro
-      # Мапа кредов 1С per-user (per-user RLS) — hot-reload, тот же механизм.
-      # Файл опционален: нет файла -> fallback на ONEC_CREDENTIALS из .env.
-      - ./backend/creds.conf:/app/creds.conf:ro
     depends_on:
       postgres:
         condition: service_healthy

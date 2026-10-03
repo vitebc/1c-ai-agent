@@ -76,19 +76,28 @@ def validate_base_url(raw: str | None) -> str:
 
 
 class JsonRpcOnecClient:
-    """Прямой клиент к /hs/mcp/rpc конкретной базы. Совместим с OnecClient."""
+    """Прямой клиент к /hs/mcp/rpc конкретной базы. Совместим с OnecClient.
+
+    Аутентификация: Bearer JWT (per-user RLS, 1С проверяет подпись и ставит
+    ТекущийПользователь по sub) или Basic auth (сервисный fallback).
+    """
 
     def __init__(
         self,
         base_url: str,
         username: str = "",
         password: str | None = None,
+        jwt_token: str = "",
         timeout: float = 120.0,
         transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
         self._root = validate_base_url(base_url)
         self._rpc_url = f"{self._root}/hs/mcp/rpc"
-        self._auth = httpx.BasicAuth(username, password or "")
+        if jwt_token:
+            self._headers: dict[str, str] = {"Authorization": f"Bearer {jwt_token}"}
+        else:
+            self._headers = {}
+        self._basic_auth = httpx.BasicAuth(username, password or "") if username else None
         self._timeout = timeout
         self._transport = transport
         self._ids = itertools.count(1)
@@ -100,7 +109,12 @@ class JsonRpcOnecClient:
     async def _rpc(self, method: str, params: dict[str, Any]) -> dict[str, Any]:
         payload = {"jsonrpc": "2.0", "id": next(self._ids), "method": method, "params": params}
         try:
-            async with httpx.AsyncClient(auth=self._auth, timeout=self._timeout, transport=self._transport) as client:
+            async with httpx.AsyncClient(
+                auth=self._basic_auth,
+                headers=self._headers or None,
+                timeout=self._timeout,
+                transport=self._transport,
+            ) as client:
                 resp = await client.post(self._rpc_url, json=payload)
                 resp.raise_for_status()
                 data: Any = resp.json()

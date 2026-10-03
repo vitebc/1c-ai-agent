@@ -44,7 +44,6 @@ from app.onec import (
     validate_base_url,
 )
 from app.onec import bases as onec_bases
-from app.onec.creds import get_user_password
 from app.patterns import make_pattern_tool
 from app.rag import build_embeddings, make_kb_search
 from app.skills import Skill, SkillRegistry
@@ -276,16 +275,16 @@ def resolve_base_root(base_name: str | None, base_url: str | None) -> str | None
     )
 
 
-def resolve_onec_creds(req_user_id: str, auth_header: str | None = None) -> tuple[str, str | None]:
-    """Креды 1С для запроса: per-user (JWT) или сервисный fallback.
+def resolve_onec_auth(auth_header: str | None = None) -> tuple[str, str]:
+    """Аутентификация 1С для запроса: per-user (JWT) или сервисный fallback.
 
     Порядок:
-    1. JWT_SECRET задан + валидный Bearer-токен → sub из токена, пароль из creds.
-       Нет пароля → ValueError (403): не деградируем до agent — это обман по правам.
+    1. JWT_SECRET задан + валидный Bearer-токен → токен пробрасывается в 1С
+       (1С проверяет подпись, находит пользователя по sub, ставит ТекущийПользователь).
     2. JWT_SECRET задан, но токена нет / невалиден → ValueError (401).
-    3. JWT_SECRET пуст (dev) → сервисный ONEC_USERNAME/PASSWORD.
+    3. JWT_SECRET пуст (dev) → сервисный ONEC_USERNAME/PASSWORD (Basic auth).
 
-    Возвращает (username, password).
+    Возвращает (jwt_token, username): jwt_token непустой — Bearer, иначе Basic.
     """
     if settings.jwt_secret:
         token = extract_bearer_token(auth_header)
@@ -297,21 +296,16 @@ def resolve_onec_creds(req_user_id: str, auth_header: str | None = None) -> tupl
         sub = str(payload.get("sub", "")).strip()
         if not sub:
             raise ValueError("JWT без поля sub")
-        password = get_user_password(sub)
-        if password is None:
-            raise ValueError(f"нет кредов 1С для пользователя {sub!r}: добавьте login=pass в creds.conf")
         log.info("per-user RLS: запрос от %s (JWT)", sub)
-        return sub, password
+        return token, ""
     # Dev-режим: сервисный пользователь.
-    return settings.onec_username, settings.onec_password
+    return "", settings.onec_username
 
 
-async def build_registry_for_root(
-    root: str, client: OnecClient | None = None, onec_user: str | None = None
-) -> ToolRegistry:
+async def build_registry_for_root(root: str, client: OnecClient | None = None, jwt_token: str = "") -> ToolRegistry:
     """Реестр под уже проверенный корень публикации (см. resolve_base_root).
 
-    onec_user — логин пользователя 1С для per-user RLS; None → сервисный fallback.
+    jwt_token — Bearer-токен для per-user RLS; пусто → сервисный Basic auth.
     """
     embeddings = build_embeddings(settings.embeddings_provider, settings.tei_base_url)
     pattern_tool = make_pattern_tool(settings.patterns_dir)
@@ -320,16 +314,15 @@ async def build_registry_for_root(
     )
     if client is not None:
         direct = client
-    elif onec_user is not None:
-        password = get_user_password(onec_user)
-        direct = JsonRpcOnecClient(root, username=onec_user, password=password or "")
+    elif jwt_token:
+        direct = JsonRpcOnecClient(root, jwt_token=jwt_token)
     else:
         direct = JsonRpcOnecClient(
             root,
             username=settings.onec_username,
             password=settings.onec_password,
         )
-    log.info("реестр инструментов базы: %s (user=%s)", root, onec_user or settings.onec_username)
+    log.info("реестр инструментов базы: %s (auth=%s)", root, "jwt" if jwt_token else "basic")
     return await _merge_live_registry(direct, extra)
 
 
@@ -526,12 +519,11 @@ async def chat(
         base_root = resolve_base_root(req.base_name, req.base_url)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
-    # Per-user RLS: JWT → креды 1С. Ошибка токена — 401/403 до сессии и эмбеддингов.
+    # Per-user RLS: JWT → токен для 1С. Ошибка токена — 401 до сессии и эмбеддингов.
     try:
-        onec_user, _onec_pass = resolve_onec_creds(req.user_id, authorization)
+        jwt_token, _onec_user = resolve_onec_auth(authorization)
     except ValueError as e:
-        code = 403 if "нет кредов" in str(e) else 401
-        raise HTTPException(status_code=code, detail=str(e)) from e
+        raise HTTPException(status_code=401, detail=str(e)) from e
     # Создаём/находим сессию и грузим историю
     async with SessionFactory() as session:
         user = (await session.execute(select(User).where(User.onec_id == req.user_id))).scalar_one_or_none()
@@ -623,7 +615,7 @@ async def chat(
         # Вопрос из базы X отвечает база X: прямой JSON-RPC в её публикацию.
         # base_root уже проверен выше (мапа → base_url); None — штатный путь.
         if base_root is not None:
-            registry = await build_registry_for_root(base_root, onec_user=onec_user)
+            registry = await build_registry_for_root(base_root, jwt_token=jwt_token)
         elif settings.onec_mode == "live":
             log.warning(
                 "чат без base_url в live-режиме: прокси не поднят, тулзы 1С недоступны "
