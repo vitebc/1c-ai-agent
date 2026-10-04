@@ -1,74 +1,84 @@
 # Dev / Prod окружения
 
-Полная изоляция: dev-сервер для разработки и тестирования, prod-сервер для пользователей.
-Правки в dev не затрагивают prod; накатка только после успешного тестирования.
+Полная изоляция: main — разработка и тесты, prod — только запуск для пользователей.
+Prod — отдельная директория **вне git**, в ней только то, что нужно для запуска бэкенда.
+Накатка только после успешных тестов на main.
 
 ## Архитектура
 
 ```
-PROD (ветка main):
+MAIN (ветка main, разработка + тесты):
   /home/test/project/1c-ai-agent/
-    backend (:8000) → postgres (:5432, volume postgres-data)
+    backend (:8001, dev-конфиг) → postgres (:5435, volume dev-postgres-data)
 
-DEV (ветка dev, git worktree):
-  /home/test/project/1c-ai-agent-dev/
-    backend (:8001) → postgres (:5435, volume dev-postgres-data)
+PROD (не git, только запуск):
+  /home/test/.config/ai-1c-server/1c-chat/
+    backend (:8000) → postgres (:5432, volume 1c-chat_postgres-data)
 ```
 
 LLM, базы 1С, агрегатор — общие для обоих окружений.
 
 ## Различия
 
-| Параметр | Prod (`main`) | Dev (`dev`, worktree) |
+| Параметр | Main (dev-конфиг) | Prod |
 |---|---|---|
-| Путь | `/home/test/project/1c-ai-agent` | `/home/test/project/1c-ai-agent-dev` |
-| Бэкенд | `:8000` | `:8001` |
-| Postgres | `:5432`, volume `postgres-data` | `:5435`, volume `dev-postgres-data` |
-| JWT_SECRET | задан (per-user RLS) | пусто (Basic auth под `agent`) |
-| Эмбеддинги | `tei` (профиль rag) | `fake` |
-| LLM / базы 1С / агрегатор | те же | те же |
+| Путь | `/home/test/project/1c-ai-agent` | `/home/test/.config/ai-1c-server/1c-chat` |
+| Git | да (ветка `main`) | нет — только runtime-файлы |
+| Бэкенд | `:8001` | `:8000` |
+| Postgres | `:5435`, volume `dev-postgres-data` | `:5432`, volume `1c-chat_postgres-data` |
+| JWT_SECRET | пусто (Basic auth под `agent`) | задан (per-user RLS) |
+| Эмбеддинги | `fake` | `tei` (при необходимости, отдельный compose-файл) |
+
+## Состав prod-директории
+
+```
+/home/test/.config/ai-1c-server/1c-chat/
+├── .env                    # реальный prod .env (секреты; deploy не трогает)
+├── docker-compose.yml      # только backend + postgres
+├── backend/
+│   ├── Dockerfile          # для пересборки при накатке
+│   ├── agents/, skills/, patterns/   # runtime-конфиги, :ro mount, hot-reload
+│   ├── bases.conf          # мапа баз ONEC_BASES (hot-reload по mtime)
+│   └── alembic/ + alembic.ini        # миграции: контейнер сам гоняет upgrade head на старте
+└── infra/postgres/init.sql
+```
 
 ## Рабочий цикл
 
 ```bash
-# 1. Разработка в dev
-cd /home/test/project/1c-ai-agent-dev
-# правки: backend/src/**, agents/, skills/, patterns/...
+# 1. Разработка и тесты в main (dev-конфиг :8001)
+cd /home/test/project/1c-ai-agent
 docker compose up -d --build backend    # :8001, тестируешь
-git add -A && git commit -m "feat: ..." && git push origin dev
+git add -A && git commit -m "feat: ..." && git push origin main
 
-# 2. Накатка в prod (после проверки)
-cd /home/test/project/1c-ai-agent
-git merge dev && git push origin main
-docker compose up -d --build backend    # :8000, пользователи получают фичу
+# 2. Накатка в prod (одной командой)
+scripts/deploy_prod.sh
+#   = build образа из main + rsync runtime-файлов в prod-директорию
+#     + docker compose up -d backend (:8000) + проверка /health
 ```
 
-## Создание dev-worktree (один раз)
+`deploy_prod.sh` отказывается работать не из ветки `main`. `.env` и БД prod не трогает.
 
-```bash
-cd /home/test/project/1c-ai-agent
-git checkout -b dev && git push origin dev
-git worktree add ../1c-ai-agent-dev dev
-cd ../1c-ai-agent-dev
-cp .env.dev .env
-# В docker-compose.yml: volume postgres-data → dev-postgres-data
-docker compose up -d postgres backend
-```
+## Откат
+
+Обратный deploy (git revert/checkout в main → `scripts/deploy_prod.sh`) или,
+пока не пересобран образ, — ручной: вернуть runtime-файлы и
+`(cd /home/test/.config/ai-1c-server/1c-chat && docker compose up -d --no-build backend)`.
 
 ## Проверка
 
 ```bash
-# Prod (не должен быть тронут)
-curl http://localhost:8000/health
-
-# Dev
+# Main (dev-конфиг)
 curl http://localhost:8001/health
+
+# Prod
+curl http://localhost:8000/health
 ```
 
 ## Чистка dev БД
 
 ```bash
-cd /home/test/project/1c-ai-agent-dev
+cd /home/test/project/1c-ai-agent
 docker compose exec -T postgres \
   psql -U agent -d agentdb -c "TRUNCATE chat_requests;"
 ```
@@ -77,7 +87,8 @@ Prod БД не трогается.
 
 ## Важно
 
-1. **Никогда не редактируй prod во время dev-работы.** Все изменения → dev → тесты → мерж в main.
+1. **Main — и разработка, и тесты.** Правки в prod-директории руками — только
+   `bases.conf` (hot-reload) и `.env`; всё остальное перезапишет deploy.
 2. **Dev БД можно чистить свободно** (`TRUNCATE`, `DROP TABLE`). Prod — нет.
-3. **Порты не пересекаются:** dev (8001, 5435), prod (8000, 5432).
-4. **Накатка только после успешных тестов на dev.**
+3. **Порты не пересекаются:** main (8001, 5435), prod (8000, 5432).
+4. **Накатка только после успешных тестов на main.**

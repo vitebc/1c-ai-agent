@@ -62,40 +62,34 @@
 
 ## Dev/Prod
 
-Полная изоляция: dev-сервер для разработки и тестирования, prod-сервер для пользователей.
-Правки в dev не затрагивают prod; накатка только после успешного тестирования.
+**main — разработка и тесты, prod — отдельная директория вне git**, в ней только то,
+что нужно для запуска бэкенда. Подробности — `DEV_PROD.md`.
 
-| | Prod (`main`) | Dev (`dev`, worktree) |
+| | Main (dev-конфиг) | Prod |
 |---|---|---|
-| Путь | `/home/test/project/1c-ai-agent` | `/home/test/project/1c-ai-agent-dev` |
-| Бэкенд | `:8000` | `:8001` |
-| Postgres | `:5432`, volume `postgres-data` | `:5435`, volume `dev-postgres-data` |
-| JWT_SECRET | задан (per-user RLS) | пусто (Basic auth под `agent`) |
-| Эмбеддинги | `tei` (профиль rag) | `fake` |
-| LLM / базы 1С / агрегатор | те же | те же |
+| Путь | `/home/test/project/1c-ai-agent` | `/home/test/.config/ai-1c-server/1c-chat` |
+| Git | да (ветка `main`) | нет — только runtime-файлы |
+| Бэкенд | `:8001` | `:8000` |
+| Postgres | `:5435`, volume `dev-postgres-data` | `:5432`, volume `1c-chat_postgres-data` |
+| JWT_SECRET | пусто (Basic auth под `agent`) | задан (per-user RLS) |
+| Эмбеддинги | `fake` | `tei` при необходимости (отдельный compose-файл) |
 
 **Рабочий цикл:**
 ```bash
-# Разработка в dev
-cd /home/test/project/1c-ai-agent-dev
-docker compose up -d --build backend    # :8001, тестируешь
-git add -A && git commit -m "feat: ..." && git push origin dev
-
-# Накатка в prod (после проверки)
+# Разработка и тесты в main (dev-конфиг :8001)
 cd /home/test/project/1c-ai-agent
-git merge dev && git push origin main
-docker compose up -d --build backend    # :8000, пользователи получают фичу
+docker compose up -d --build backend    # :8001, тестируешь
+git add -A && git commit -m "feat: ..." && git push origin main
+
+# Накатка в prod (одной командой, только из ветки main)
+scripts/deploy_prod.sh
+#   = build образа + rsync runtime-файлов (agents/skills/patterns/bases.conf/Dockerfile/alembic)
+#     в /home/test/.config/ai-1c-server/1c-chat + docker compose up -d backend (:8000) + /health
 ```
 
-**Создание dev-worktree (один раз):**
-```bash
-git checkout -b dev && git push origin dev
-git worktree add ../1c-ai-agent-dev dev
-cd ../1c-ai-agent-dev
-cp .env.dev .env
-# В docker-compose.yml: volume postgres-data → dev-postgres-data
-docker compose up -d postgres backend
-```
+Прод-директория: `.env` (секреты, deploy не трогает), `docker-compose.yml` (backend+postgres),
+`backend/{Dockerfile,agents,skills,patterns,bases.conf,alembic}`, `infra/postgres/init.sql`.
+В prod руками правится только `bases.conf` (hot-reload) и `.env`.
 
 ## Окружение разработки
 
