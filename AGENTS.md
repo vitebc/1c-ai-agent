@@ -69,7 +69,7 @@
 |---|---|---|
 | Путь | `/home/test/project/1c-ai-agent` | `/home/test/project/1c-ai-agent-dev` |
 | Бэкенд | `:8000` | `:8001` |
-| Postgres | `:5432`, volume `postgres-data` | `:5433`, volume `dev-postgres-data` |
+| Postgres | `:5432`, volume `postgres-data` | `:5435`, volume `dev-postgres-data` |
 | JWT_SECRET | задан (per-user RLS) | пусто (Basic auth под `agent`) |
 | Эмбеддинги | `tei` (профиль rag) | `fake` |
 | LLM / базы 1С / агрегатор | те же | те же |
@@ -93,7 +93,7 @@ git checkout -b dev && git push origin dev
 git worktree add ../1c-ai-agent-dev dev
 cd ../1c-ai-agent-dev
 cp .env.dev .env
-# В docker-compose.yml: volume postgres-data → dev-postgres-data (или POSTGRES_DATA_DIR в .env)
+# В docker-compose.yml: volume postgres-data → dev-postgres-data
 docker compose up -d postgres backend
 ```
 

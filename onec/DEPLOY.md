@@ -46,6 +46,43 @@
 **Регистр букв в URL обязан совпадать с именем публикации** — иначе 1С делает
 редирект и POST превращается в GET (проверено по докам апстрима).
 
+### 3.1. JWT-аутентификация (per-user RLS, prod)
+
+Для per-user RLS бэкенд передаёт Bearer-JWT в `{base_url}/hs/mcp/rpc`;
+1С проверяет подпись и ставит `ТекущийПользователь` по `sub`.
+Требуется платформа **8.3.21+**.
+
+В файле публикации (`default.vrd`) добавить секцию `<accessTokenAuthentication>`:
+
+```xml
+<ws>
+    <point name="mcp">
+        <accessTokenAuthentication>
+            <accessTokenRecipientName>mcp</accessTokenRecipientName>
+            <issuers>
+                <issuer name="1c-ai-chat"
+                        authenticationClaimName="sub"
+                        authenticationUserPropertyName="name"
+                        keyInformation="YnSdgu3G2xglYfpT3eLee2Sz1M+VwqqxkL7XYu9fP5c="/>
+            </issuers>
+        </accessTokenAuthentication>
+    </point>
+</ws>
+```
+
+- `accessTokenRecipientName` = `mcp` (имя точки доступа `/hs/mcp/rpc`).
+- `issuer name` = `1c-ai-chat` (совпадает с `iss` в токене, генерируется BSL).
+- `authenticationClaimName` = `sub` — поле токена с логином пользователя.
+- `authenticationUserPropertyName` = `name` — свойство элемента Пользователи.
+- `keyInformation` — Base64-ключ HS256 (тот же, что в BSL `КлючПодписиТокена()`
+  и в `.env` бэкенда `JWT_SECRET`).
+
+После правки `default.vrd` — **перезапустить веб-сервер** (IIS: `iisreset`,
+Apache: `systemctl restart apache2`).
+
+Dev-режим (`JWT_SECRET` пуст) не требует этой секции — бэкенд ходит Basic auth
+под `ONEC_USERNAME`.
+
 ## 4. Пользователь для агента (read-only)
 
 Отдельный пользователь 1С, БЕЗ административных прав. Ему нужно:
@@ -127,6 +164,10 @@ python onec\smoke_check.py --url http://HOST/ka2test --user AGENT_USER --meta
   `agent`, а не пользователь, зашитый в default.vrd.
 - `HTTP 401/403` — неверный пользователь/пароль или у пользователя нет прав
   на данные (RLS тоже может резать — проверь тем же пользователем интерактивно).
+- `HTTP 401` при per-user RLS (JWT) — проверь: (а) секция `<accessTokenAuthentication>`
+  есть в `default.vrd` и веб-сервер перезапущен; (б) ключ `keyInformation` совпадает
+  с `JWT_SECRET` бэкенда и BSL `КлючПодписиТокена()`; (в) у пользователя есть элемент
+  в справочнике Пользователи с `name` = `sub` из токена + роль `a1c_АгентДоступ`.
 - HTML вместо JSON / `POST превратился в GET` — регистр имени базы в URL.
 - `Extension ... cannot be loaded` — пришли текст ошибки целиком.
 - Пустые массивы в ответах при живых данных — возможно RLS пользователя:
