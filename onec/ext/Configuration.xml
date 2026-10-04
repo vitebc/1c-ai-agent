@@ -30,6 +30,10 @@
 				<xr:ClassId>fb282519-d103-4dd3-bc12-cb271d631dfc</xr:ClassId>
 				<xr:ObjectId>c41897bb-4eae-4893-adac-c48653f0ab8f</xr:ObjectId>
 			</xr:ContainedObject>
+			<xr:PropertyState>
+				<xr:Property>SessionModule</xr:Property>
+				<xr:State>Extended</xr:State>
+			</xr:PropertyState>
 		</InternalInfo>
 		<Properties>
 			<ObjectBelonging>Adopted</ObjectBelonging>
@@ -71,6 +75,7 @@
 		<ChildObjects>
 			<Language>Русский</Language>
 			<Subsystem>a1c_mcp_MCPСервер</Subsystem>
+			<Style>СтильАИ1С_ОсновнойСтиль</Style>
 			<CommonPicture>a1c_Лого</CommonPicture>
 			<Role>a1c_АгентДоступ</Role>
 			<CommonModule>a1c_МаркдаунПарсер</CommonModule>
