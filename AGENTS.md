@@ -60,12 +60,48 @@
 - Отчёты — BSL-запросы v1 (контракт как у СКД, без XML/DSС рисков); переход на `skd-compile` — при нужде в раскладках.
 - `1c_mcp`: только `http` в проде (`file`/`httppoll` — тест), регистр базы в URL = публикации (иначе POST→GET), OAuth2 не в `stdio`, password grant удалён (только Authorization Code + PKCE).
 
+## Dev/Prod
+
+Полная изоляция: dev-сервер для разработки и тестирования, prod-сервер для пользователей.
+Правки в dev не затрагивают prod; накатка только после успешного тестирования.
+
+| | Prod (`main`) | Dev (`dev`, worktree) |
+|---|---|---|
+| Путь | `/home/test/project/1c-ai-agent` | `/home/test/project/1c-ai-agent-dev` |
+| Бэкенд | `:8000` | `:8001` |
+| Postgres | `:5432`, volume `postgres-data` | `:5433`, volume `dev-postgres-data` |
+| JWT_SECRET | задан (per-user RLS) | пусто (Basic auth под `agent`) |
+| Эмбеддинги | `tei` (профиль rag) | `fake` |
+| LLM / базы 1С / агрегатор | те же | те же |
+
+**Рабочий цикл:**
+```bash
+# Разработка в dev
+cd /home/test/project/1c-ai-agent-dev
+docker compose up -d --build backend    # :8001, тестируешь
+git add -A && git commit -m "feat: ..." && git push origin dev
+
+# Накатка в prod (после проверки)
+cd /home/test/project/1c-ai-agent
+git merge dev && git push origin main
+docker compose up -d --build backend    # :8000, пользователи получают фичу
+```
+
+**Создание dev-worktree (один раз):**
+```bash
+git checkout -b dev && git push origin dev
+git worktree add ../1c-ai-agent-dev dev
+cd ../1c-ai-agent-dev
+cp .env.dev .env
+# В docker-compose.yml: volume postgres-data → dev-postgres-data (или POSTGRES_DATA_DIR в .env)
+docker compose up -d postgres backend
+```
+
 ## Окружение разработки
 
-- Тесты и линт — на этом сервере (`/root/project/1c-ai-agent`, `cd backend && uv run pytest`). Удалённый сервер — только по явной просьбе: `ssh test@100.85.239.61`, проект `/home/test/project/1c-ai-agent` (там же `.env`, бэкапы `.env.bak-*`).
-- VPS без GPU (Linux): llama-server нет, веса не качаем. Бэкенд — `docker compose up -d backend` (см. `backend/Dockerfile`). LLM для смоуков — облачная OpenAI-модель через `.env` (`LLM_BASE_URL`/`LLM_API_KEY`/`LLM_MODEL`) только на синтетике.
-- GPU-сервер отдельно (5090, 72 ГБ): llama.cpp-server под `qwen3.8-27b-1C` — шаги 1–2.
-- Тестовая 1С — Windows-VM (8.3.20+, КА2), требуется элемент Пользователи + чтение 7 объектов + роль `a1c_АгентДоступ` в конфигураторе (шаг 4 `onec/DEPLOY.md`). Связка Linux-бэкенда — по сети (VPN/Tailscale/проброс IIS; прямые вызовы — `ONEC_USERNAME`/`ONEC_PASSWORD` + `ONEC_BASES` для исключений, прокси — `MCP_ONEC_URL` / `ONEC_MCP_URL_COMPOSE=http://mcp-proxy:8000`; агрегатор — `AGG_MCP_URL`, см. `.env.example`). Без сети — fallback на Windows-контур (`onec/CHAT.md`). Детали — `onec/README.md`. Референсные выгрузки чужих MCP (OneBridge, feenlace) — в `data/` (в git не коммитятся).
+- Тесты и линт — на этом сервере (`cd backend && uv run pytest`). Удалённый сервер — только по явной просьбе: `ssh test@100.85.239.61`, проект `/home/test/project/1c-ai-agent` (там же `.env`, бэкапы `.env.bak-*`).
+- GPU-сервер (5090, 72 ГБ): llama.cpp-server под `qwen3.8-27b-1C` на `http://192.168.170.105:12600/v1`.
+- Тестовая 1С — Windows-VM (8.3.20+, КА2), требуется элемент Пользователи + чтение 7 объектов + роль `a1c_АгентДоступ` в конфигураторе (шаг 4 `onec/DEPLOY.md`). Связка Linux-бэкенда — по сети (прямые вызовы — `ONEC_USERNAME`/`ONEC_PASSWORD` + `ONEC_BASES`; агрегатор — `AGG_MCP_URL`, см. `.env.example`). Детали — `onec/README.md`.
 
 ## Команды
 

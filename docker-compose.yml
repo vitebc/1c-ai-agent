@@ -8,11 +8,10 @@
 services:
   backend:
     build: ./backend
-    image: 1c-ai-agent-backend:prod
+    image: ${BACKEND_IMAGE:-1c-ai-agent-backend}
     restart: unless-stopped
     env_file: .env
     environment:
-      ENVIRONMENT: prod
       # Внутри compose backend ходит на postgres по имени сервиса, а не на localhost.
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-agent}:${POSTGRES_PASSWORD:-agent}@postgres:5432/${POSTGRES_DB:-agentdb}
       # Внутри compose-сети прокси доступен как mcp-proxy:8000, а не localhost (localhost = сам backend).
@@ -50,7 +49,7 @@ services:
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - ${POSTGRES_DATA_DIR:-postgres-data}:/var/lib/postgresql/data
       - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-agent}"]
@@ -96,5 +95,8 @@ services:
       - "${MCP_PROXY_PORT:-8001}:8000"
 
 volumes:
+  # Имя volume задаётся через POSTGRES_DATA_DIR (dev: dev-postgres-data, prod: postgres-data).
+  # Named volume в compose должен совпадать с ключом здесь; при нестандартном имени
+  # docker создаёт его автоматически.
   postgres-data:
   tei-data:
