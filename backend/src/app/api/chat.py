@@ -379,6 +379,7 @@ async def list_tools(
     registry: ToolRegistry = Depends(_lazy_registry),  # noqa: B008
     base_url: str | None = Query(default=None, max_length=256, description="Реестр конкретной базы: прямой JSON-RPC"),
     base_name: str | None = Query(default=None, max_length=128, description="Имя базы: сначала мапа ONEC_BASES"),
+    authorization: str | None = Header(default=None),  # noqa: B008 — JWT per-user RLS
 ) -> JSONResponse:
     """Полный реестр доступных инструментов (динамически: mock/live + локальные).
 
@@ -394,8 +395,14 @@ async def list_tools(
             root = resolve_base_root(base_name, base_url)
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e)) from e
+    # Per-user RLS: JWT → токен для 1С (та же логика, что в POST /chat).
+    jwt_token = ""
     if root is not None:
-        registry = await build_registry_for_root(root)
+        try:
+            jwt_token, _onec_user = resolve_onec_auth(authorization)
+        except ValueError as e:
+            raise HTTPException(status_code=401, detail=str(e)) from e
+        registry = await build_registry_for_root(root, jwt_token=jwt_token)
     return JSONResponse(
         {
             "mode": settings.onec_mode,

@@ -33,8 +33,9 @@ def _b64url_encode(data: bytes) -> str:
 def validate_hs256(token: str, secret: str) -> dict[str, object] | None:
     """Проверить HS256-подпись и exp. Возвращает payload или None.
 
-    secret — Base64-строка (тот же формат, что передаётся в BSL
-    ТокенДоступа.Подписать(HS256, КлючBase64)).
+    secret — строка (тот же формат, что передаётся в BSL
+    ТокенДоступа.Подписать(HS256, Ключ)). 1С использует строку как есть
+    (UTF-8), НЕ декодирует её из Base64 — поэтому и здесь ключ = строка.
     """
     try:
         parts = token.split(".")
@@ -48,8 +49,9 @@ def validate_hs256(token: str, secret: str) -> dict[str, object] | None:
             log.warning("JWT: неожиданный alg=%s (ожидался HS256)", header.get("alg"))
             return None
 
-        # Проверка подписи.
-        key = _b64url_decode(secret)
+        # Проверка подписи. 1С ТокенДоступа.Подписать(HS256, Ключ) использует
+        # строку ключа как есть (UTF-8), без base64-декодирования.
+        key = secret.encode("utf-8")
         signing_input = f"{header_b64}.{payload_b64}".encode("ascii")
         expected_sig = _b64url_encode(hmac.new(key, signing_input, hashlib.sha256).digest())
         if not hmac.compare_digest(expected_sig, sig_b64):

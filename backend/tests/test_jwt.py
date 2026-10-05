@@ -14,9 +14,12 @@ def _b64url(data: bytes) -> str:
     return base64.urlsafe_b64encode(data).rstrip(b"=").decode()
 
 
-def _make_jwt(payload: Mapping[str, object], secret_b64: str, alg: str = "HS256") -> str:
-    """Собирает HS256 JWT (как делает 1С ТокенДоступа.Подписать)."""
-    key = base64.urlsafe_b64decode(secret_b64 + "=" * (-len(secret_b64) % 4))
+def _make_jwt(payload: Mapping[str, object], secret: str, alg: str = "HS256") -> str:
+    """Собирает HS256 JWT (как делает 1С ТокенДоступа.Подписать).
+
+    1С использует строку ключа как есть (UTF-8), без base64-декодирования.
+    """
+    key = secret.encode("utf-8")
     header = _b64url(json.dumps({"alg": alg, "typ": "JWT"}).encode())
     body = _b64url(json.dumps(dict(payload)).encode())
     sig = _b64url(hmac.new(key, f"{header}.{body}".encode(), hashlib.sha256).digest())
