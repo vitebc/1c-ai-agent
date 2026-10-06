@@ -4,15 +4,15 @@
 		<Color>#4682B4</Color>
 	</Item>
 	<Item name="AccentColor">
-		<Color>#7F9DB9</Color>
+		<Color>#4682B4</Color>
 	</Item>
 	<Item name="NavigationColor">
-		<Color>#4682B4</Color>
-	</Item>
-	<Item name="AuxiliaryNavigationColor">
 		<Color>#7F9DB9</Color>
 	</Item>
+	<Item name="AuxiliaryNavigationColor">
+		<Color>win:ActiveTitleBar</Color>
+	</Item>
 	<Item name="ImportantColor">
-		<Color>#4682B4</Color>
+		<Color>win:ActiveTitleBar</Color>
 	</Item>
 </Style>

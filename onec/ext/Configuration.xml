@@ -31,6 +31,10 @@
 				<xr:ObjectId>c41897bb-4eae-4893-adac-c48653f0ab8f</xr:ObjectId>
 			</xr:ContainedObject>
 			<xr:PropertyState>
+				<xr:Property>ManagedApplicationModule</xr:Property>
+				<xr:State>Extended</xr:State>
+			</xr:PropertyState>
+			<xr:PropertyState>
 				<xr:Property>SessionModule</xr:Property>
 				<xr:State>Extended</xr:State>
 			</xr:PropertyState>
