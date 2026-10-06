@@ -25,8 +25,8 @@ if [ "$BRANCH" != "main" ]; then
   exit 1
 fi
 
-echo "== Build образа из main =="
-(cd "$REPO" && docker compose build backend)
+echo "== Build образа из main (no-cache: src/ обязана быть свежей) =="
+(cd "$REPO" && docker compose build --no-cache backend)
 
 echo "== Синхронизация runtime-файлов в $PROD =="
 # rsync --delete только для папок, которые бэкенд перечитывает на каждый запрос:
@@ -42,8 +42,8 @@ mkdir -p "$PROD/backend/alembic"
 rsync -a --delete "$REPO/backend/alembic/" "$PROD/backend/alembic/"
 cp "$REPO/backend/alembic.ini" "$PROD/backend/alembic.ini"
 
-echo "== Перезапуск backend =="
-(cd "$PROD" && docker compose up -d backend)
+echo "== Перезапуск backend (force-recreate: гарантируем новый образ) =="
+(cd "$PROD" && docker compose up -d --force-recreate backend)
 
 echo "== Проверка =="
 for i in $(seq 1 30); do
