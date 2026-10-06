@@ -52,13 +52,23 @@
 1С проверяет подпись и ставит `ТекущийПользователь` по `sub`.
 Требуется платформа **8.3.21+**.
 
-В файле публикации (`default.vrd`) добавить секцию `<accessTokenAuthentication>`:
+В файле публикации (`default.vrd`) секция `<accessTokenAuthentication>` должна
+висеть на **HTTP-сервисе**, а не на веб-сервисе: MCP-ядро — это HTTP-сервис
+`mcp_APIBackend` (RootURL `mcp`), поэтому блок идёт в `<httpServices>`.
+Секция внутри `<ws>/<point>` для него НЕ действует (токен платформа не видит,
+запрос падает «Идентификация пользователя в информационной базе не выполнена»):
 
 ```xml
-<ws>
-    <point name="mcp">
+<httpServices>
+    <service name="mcp_APIBackend"
+            rootUrl="mcp"
+            enable="true"
+            reuseSessions="autouse"
+            sessionMaxAge="1200"
+            poolSize="10"
+            poolTimeout="5">
         <accessTokenAuthentication>
-            <accessTokenRecipientName>mcp</accessTokenRecipientName>
+            <accessTokenRecepientName>mcp</accessTokenRecepientName>
             <issuers>
                 <issuer name="1c-ai-chat"
                         authenticationClaimName="sub"
@@ -66,16 +76,22 @@
                         keyInformation="YnSdgu3G2xglYfpT3eLee2Sz1M+VwqqxkL7XYu9fP5c="/>
             </issuers>
         </accessTokenAuthentication>
-    </point>
-</ws>
+    </service>
+</httpServices>
 ```
 
-- `accessTokenRecipientName` = `mcp` (имя точки доступа `/hs/mcp/rpc`).
+- `name`/`rootUrl` — имя HTTP-сервиса и его RootURL в метаданных (`mcp_APIBackend`/`mcp`).
+- `accessTokenRecepientName` = `mcp` — значение, которое BSL кладёт в `Токен.Получатели`.
 - `issuer name` = `1c-ai-chat` (совпадает с `iss` в токене, генерируется BSL).
-- `authenticationClaimName` = `sub` — поле токена с логином пользователя.
+- `authenticationClaimName` = `sub` — поле токена с именем пользователя.
 - `authenticationUserPropertyName` = `name` — свойство элемента Пользователи.
 - `keyInformation` — Base64-ключ HS256 (тот же, что в BSL `КлючПодписиТокена()`
   и в `.env` бэкенда `JWT_SECRET`).
+
+**Обязательный claim `exp`:** платформа (проверено на 8.3.27) при
+`accessTokenAuthentication` требует в токене `exp`; без него запрос падает
+`HTTP 402 / Claim not found exp`. BSL обязан задавать `Токен.ВремяЖизни`
+(в `a1c_ЧатФоновый.СформироватьТокенДоступа()` — 28800 сек = 8 часов).
 
 После правки `default.vrd` — **перезапустить веб-сервер** (IIS: `iisreset`,
 Apache: `systemctl restart apache2`).
