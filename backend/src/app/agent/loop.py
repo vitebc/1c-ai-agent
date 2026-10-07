@@ -94,6 +94,17 @@ def _assistant_message(msg: AssistantMessage) -> dict[str, Any]:
     }
 
 
+def _full_assistant_text(msg: AssistantMessage) -> str:
+    """Полный текст assistant-сообщения для логов: контент + tool_calls без обрезки."""
+    content = msg.content
+    if isinstance(content, list):
+        parts = [str(p.get("text", "")) for p in content if isinstance(p, dict) and p.get("type") == "text"]
+        content = " ".join(parts)
+    text = content or ""
+    calls = "; ".join(f"{c.name}({c.arguments})" for c in msg.tool_calls)
+    return f"{text}\nTOOL_CALLS: {calls}" if calls else text
+
+
 async def run_agent(
     *,
     llm: ChatLLM,
@@ -143,6 +154,7 @@ async def run_agent(
             prompt_tokens += resp.usage.prompt_tokens
             completion_tokens += resp.usage.completion_tokens
         messages.append(_assistant_message(resp))
+        log.info("user=%s round=%d assistant: %s", user_id, round_no, _full_assistant_text(resp))
         if not resp.tool_calls:
             elapsed = time.monotonic() - started
             log.info(
@@ -155,7 +167,7 @@ async def run_agent(
                 called,
                 errors,
                 elapsed,
-                _preview(resp.content),
+                _preview(resp.content, 100_000),
             )
             return AgentResult(
                 answer=resp.content or "",
@@ -176,7 +188,7 @@ async def run_agent(
             else:
                 consec_errors = 0
             log.info(
-                "user=%s round=%d tool=%s args=%.300s -> %.300s",
+                "user=%s round=%d tool=%s args=%s -> %s",
                 user_id,
                 round_no,
                 call.name,

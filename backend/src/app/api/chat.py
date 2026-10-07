@@ -238,6 +238,7 @@ def _fallback_registry() -> ToolRegistry:
     if settings.onec_mode == "live":
         # Прокси не опрашиваем: локальные тулзы + агрегатор. Динамические
         # инструменты базы подхватываются в чате через build_registry_for_root(base_url).
+        # MOCK_ONEC_TOOLS — только как оффлайн-заглушка (тесты/dev без 1С), не для live.
         return ToolRegistry(agg_tools + extra)
     if settings.onec_mode != "mock":
         raise ValueError(f"ONEC_MODE: жди 'mock' или 'live', получено {settings.onec_mode!r}")
@@ -396,6 +397,8 @@ async def list_tools(
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e)) from e
     # Per-user RLS: JWT → токен для 1С (та же логика, что в POST /chat).
+    # Только когда запрашивается реестр конкретной базы (base_name/base_url):
+    # общий реестр без базы — диагностика, не требует аутентификации.
     jwt_token = ""
     if root is not None:
         try:
@@ -403,6 +406,8 @@ async def list_tools(
         except ValueError as e:
             raise HTTPException(status_code=401, detail=str(e)) from e
         registry = await build_registry_for_root(root, jwt_token=jwt_token)
+    else:
+        registry = _fallback_registry()
     return JSONResponse(
         {
             "mode": settings.onec_mode,

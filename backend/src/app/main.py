@@ -1,4 +1,5 @@
 import logging
+from logging.handlers import RotatingFileHandler
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,6 +11,29 @@ from app.config import settings
 
 # Без этого INFO-логи петли (agent1c.loop) тонут: root-логгер по умолчанию WARNING.
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
+
+
+def _setup_loop_file_logging() -> None:
+    """Дублировать логи петли в файл с полным контентом раундов (LOOP_LOG_FILE).
+
+    Ротация 50 МБ × 3 файла — полный лог тяжёлый (полные ответы модели и
+    результаты инструментов), бесконечный файл не допустим.
+    """
+    path = settings.loop_log_file.strip()
+    if not path:
+        return
+    try:
+        handler = RotatingFileHandler(
+            path, maxBytes=50 * 1024 * 1024, backupCount=3, encoding="utf-8"
+        )
+        handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
+        logging.getLogger("agent1c.loop").addHandler(handler)
+    except OSError as e:
+        # Файл недоступен (нет папки/прав) — не роняем бэкенд, только stdout.
+        logging.getLogger("agent1c.main").warning("LOOP_LOG_FILE=%s недоступен: %s", path, e)
+
+
+_setup_loop_file_logging()
 
 
 def create_app() -> FastAPI:

@@ -92,6 +92,10 @@ class Settings(BaseSettings):
     # Агент по умолчанию (явный дропдаун 1С; пусто в запросе = этот).
     default_agent: str = "assistant"
 
+    # Файл для дублирования логов петли (agent1c.loop) с полным контентом раундов.
+    # Пусто — только stdout (docker logs). Ротация 50 МБ × 3 файла.
+    loop_log_file: str = ""
+
     @field_validator("llm_api_key", mode="before")
     @classmethod
     def _coerce_api_key(cls, v: object) -> object:

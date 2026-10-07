@@ -16,6 +16,8 @@ services:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-agent}:${POSTGRES_PASSWORD:-agent}@postgres:5432/${POSTGRES_DB:-agentdb}
       # Внутри compose-сети прокси доступен как mcp-proxy:8000, а не localhost (localhost = сам backend).
       ONEC_MCP_URL: ${ONEC_MCP_URL_COMPOSE:-http://mcp-proxy:8000}
+      # Полный лог петли (каждый раунд: assistant-контент + tool args/results) — файл.
+      LOOP_LOG_FILE: /app/logs/agent-loop.log
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     volumes:
@@ -29,6 +31,8 @@ services:
       # правка на хосте подхватывается без рестарта контейнера. Файл опционален:
       # нет файла -> fallback на ONEC_BASES из .env (стартовое значение).
       - ./backend/bases.conf:/app/bases.conf:ro
+      # Файл полного лога петли — на хост, чтобы пережил рестарты контейнера.
+      - ./logs/agent-loop.log:/app/logs/agent-loop.log
     depends_on:
       postgres:
         condition: service_healthy
