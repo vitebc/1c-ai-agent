@@ -32,11 +32,13 @@ echo "== Build образа из main (no-cache: src/ обязана быть с
   docker tag "${BACKEND_IMAGE:-1c-ai-agent-backend}:dev" "${BACKEND_IMAGE:-1c-ai-agent-backend}:latest")
 
 echo "== Синхронизация runtime-файлов в $PROD =="
-# rsync --delete только для папок, которые бэкенд перечитывает на каждый запрос:
-# устаревшие AGENT.md/SKILL.md/паттерны не должны переживать смерть.
+# Без --delete: существующие файлы в prod НЕ затираются, локальные правки и
+# новые файлы (напр. скилы, сгенерированные через чат) переживают деплой.
+# Git — источник правды для ОБНОВЛЕНИЯ, но не для удаления.
+# Чтобы удалить агента/скилл/паттерн из prod: удалить из git И вручную rm -r в prod.
 for d in agents skills patterns; do
   mkdir -p "$PROD/backend/$d"
-  rsync -a --delete "$REPO/backend/$d/" "$PROD/backend/$d/"
+  rsync -a "$REPO/backend/$d/" "$PROD/backend/$d/"
 done
 # Одиночные файлы — без --delete (bases.conf может быть отредактирован на хосте).
 cp "$REPO/backend/bases.conf" "$PROD/backend/bases.conf"
