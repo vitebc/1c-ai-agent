@@ -1,7 +1,7 @@
 ---
 name: dogovor
 description: Шаблоны запросов получения действующих договоров
-enabled: false
+enabled: true
 ---
 
 # Получение действующих договоров
