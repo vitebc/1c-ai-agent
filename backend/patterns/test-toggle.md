@@ -1,7 +1,7 @@
 ---
 name: test-toggle
 description: t
-enabled: enabled: true
+enabled: true
 ---
 
 x
