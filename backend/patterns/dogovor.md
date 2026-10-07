@@ -1,6 +1,6 @@
 ---
 name: dogovor
-description: test update
+description: test update 2
 enabled: false
 ---
 
