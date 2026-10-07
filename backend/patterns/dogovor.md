@@ -1,7 +1,7 @@
 ---
 name: dogovor
 description: test update
-enabled: enabled: true
+enabled: false
 ---
 
 # Test
