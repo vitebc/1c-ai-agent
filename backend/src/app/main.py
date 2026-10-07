@@ -23,11 +23,16 @@ def _setup_loop_file_logging() -> None:
     if not path:
         return
     try:
+        loop_logger = logging.getLogger("agent1c.loop")
+        # Уровень явный: без него логгер наследует WARNING от root (родитель
+        # agent1c handler'ов не имеет), и INFO-записи в файл не проходят,
+        # хотя в stdout через basicConfig видны.
+        loop_logger.setLevel(logging.INFO)
         handler = RotatingFileHandler(
             path, maxBytes=50 * 1024 * 1024, backupCount=3, encoding="utf-8"
         )
         handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
-        logging.getLogger("agent1c.loop").addHandler(handler)
+        loop_logger.addHandler(handler)
     except OSError as e:
         # Файл недоступен (нет папки/прав) — не роняем бэкенд, только stdout.
         logging.getLogger("agent1c.main").warning("LOOP_LOG_FILE=%s недоступен: %s", path, e)
