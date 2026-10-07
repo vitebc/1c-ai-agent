@@ -31,6 +31,16 @@ class Pattern:
     description: str
     text: str
     source: str = ""  # путь к файлу, для отладки
+    enabled: bool = True  # enabled: false в frontmatter — скрыт от агента
+
+
+def _parse_enabled(value: object) -> bool:
+    """enabled из frontmatter: булево или строка 'true'/'false'. Нет ключа — True."""
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() not in ("false", "0", "no", "off")
+    return True
 
 
 def parse_pattern_file(path: Path) -> Pattern:
@@ -49,7 +59,13 @@ def parse_pattern_file(path: Path) -> Pattern:
         raise PatternFormatError(f"{path}: нужен непустой description")
     if not text:
         raise PatternFormatError(f"{path}: пустое тело паттерна")
-    return Pattern(name=name, description=description.strip(), text=text, source=str(path))
+    return Pattern(
+        name=name,
+        description=description.strip(),
+        text=text,
+        source=str(path),
+        enabled=_parse_enabled(meta.get("enabled", True)),
+    )
 
 
 @dataclass
@@ -89,16 +105,25 @@ class PatternArgs(BaseModel):
 
 
 def make_pattern_tool(patterns_dir: Path | str) -> ToolDefinition | None:
-    """Тулза get_pattern поверх папки паттернов. Пустая папка — None (не регистрируем)."""
+    """Тулза get_pattern поверх папки паттернов. Пустая папка — None (не регистрируем).
+
+    Агент видит только ВКЛЮЧЁННЫЕ паттерны (enabled != false в frontmatter):
+    они перечислены в описании тулзы, выключенные возвращают ERROR."""
     reg = PatternRegistry.load(patterns_dir)
     if not reg.patterns:
         return None
-    available = ", ".join(f"{p.name} ({p.description})" for p in reg.patterns)
+    enabled = [p for p in reg.patterns if p.enabled]
+    if not enabled:
+        # Все выключены — тулзу не регистрируем (агенту нечего подгружать).
+        return None
+    available = ", ".join(f"{p.name} ({p.description})" for p in enabled)
 
     async def handler(args: PatternArgs, ctx: object) -> str:  # noqa: ARG001 — контекст не нужен
         pattern = reg.get(args.name.strip())
         if pattern is None:
-            return f"ERROR: неизвестный паттерн {args.name!r}. Доступны: {reg.names}. Выбери из них."
+            return f"ERROR: неизвестный паттерн {args.name!r}. Доступны: {[p.name for p in enabled]}. Выбери из них."
+        if not pattern.enabled:
+            return f"ERROR: паттерн {pattern.name!r} отключён. Доступны: {[p.name for p in enabled]}. Выбери из них."
         return pattern.text
 
     return ToolDefinition(
