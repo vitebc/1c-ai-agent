@@ -45,3 +45,4 @@ models/
 # Docker
 postgres-data/
 .opencode/
+logs/
