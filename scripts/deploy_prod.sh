@@ -26,7 +26,10 @@ if [ "$BRANCH" != "main" ]; then
 fi
 
 echo "== Build образа из main (no-cache: src/ обязана быть свежей) =="
-(cd "$REPO" && docker compose build --no-cache backend)
+# Dev-образ собирается как 1c-ai-agent-backend:dev, prod-compose ждёт :latest —
+# без тега prod молча поднимет старый образ (проверено: дубль кода не накатывался).
+(cd "$REPO" && docker compose build --no-cache backend && \
+  docker tag "${BACKEND_IMAGE:-1c-ai-agent-backend}:dev" "${BACKEND_IMAGE:-1c-ai-agent-backend}:latest")
 
 echo "== Синхронизация runtime-файлов в $PROD =="
 # rsync --delete только для папок, которые бэкенд перечитывает на каждый запрос:
