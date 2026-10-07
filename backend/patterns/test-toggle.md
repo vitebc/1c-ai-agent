@@ -1,8 +1,7 @@
 ---
 name: test-toggle
-description: temp test pattern
+description: updated desc
 enabled: true
 ---
 
-# Test
-Body
+# Updated
