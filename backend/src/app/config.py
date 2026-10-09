@@ -96,6 +96,10 @@ class Settings(BaseSettings):
     # Пусто — только stdout (docker logs). Ротация 50 МБ × 3 файла.
     loop_log_file: str = ""
 
+    # Мапа база -> разрешённые search-серверы агрегатора (hot-reload, см. onec/search_maps.py).
+    # Пусто — фильтрации нет: агент видит все search-серверы из AGENT.md.
+    search_maps_file: str = ""
+
     @field_validator("llm_api_key", mode="before")
     @classmethod
     def _coerce_api_key(cls, v: object) -> object:

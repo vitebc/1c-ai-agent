@@ -31,6 +31,7 @@ services:
       # правка на хосте подхватывается без рестарта контейнера. Файл опционален:
       # нет файла -> fallback на ONEC_BASES из .env (стартовое значение).
       - ./backend/bases.conf:/app/bases.conf:ro
+      - ./backend/search-maps.conf:/app/search-maps.conf:ro
       # Файл полного лога петли — на хост, чтобы пережил рестарты контейнера.
       - ./logs/agent-loop.log:/app/logs/agent-loop.log
     depends_on:

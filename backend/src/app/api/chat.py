@@ -41,6 +41,7 @@ from app.onec import (
     fetch_agg_tools,
     make_ext_freshness_tool,
     make_generic_tool,
+    search_maps,
     validate_base_url,
 )
 from app.onec import bases as onec_bases
@@ -336,12 +337,19 @@ async def build_registry_for_base_url(base_url: str, client: OnecClient | None =
     return await build_registry_for_root(validate_base_url(base_url), client)
 
 
-def scope_registry_for_agent(registry: ToolRegistry, agent: Agent) -> tuple[ToolRegistry, list[str]]:
+def scope_registry_for_agent(
+    registry: ToolRegistry, agent: Agent, base_name: str | None = None
+) -> tuple[ToolRegistry, list[str]]:
     """Фильтр реестра под агента: сервер тулзы обязан быть в agent.mcp_servers
     (локальные server="local" — всегда), имя — в agent.tools.
 
+    search-серверы агрегатора дополнительно фильтруются по мапе база -> серверы
+    (app.onec.search_maps): вопрос из базы X видит только её кодовые индексы.
+    Мапа пустая или базы в ней нет — без фильтрации (все серверы агента).
+
     Возвращает (урезанный реестр, список отброшенных с причинами).
     """
+    allowed_search = search_maps.allowed_search_servers(base_name)
     scoped: list[str] = []
     rejected: list[str] = []
     for t in agent.tools:
@@ -350,6 +358,10 @@ def scope_registry_for_agent(registry: ToolRegistry, agent: Agent) -> tuple[Tool
             rejected.append(f"{t} (нет в реестре)")
         elif td.server != "local" and td.server not in agent.mcp_servers:
             rejected.append(f"{t} (сервер {td.server} не в mcp агента {sorted(agent.mcp_servers)})")
+        elif allowed_search is not None and td.server.startswith("search-") and td.server not in allowed_search:
+            rejected.append(
+                f"{t} (search-сервер {td.server} не разрешён для базы {base_name}: {allowed_search})"
+            )
         else:
             scoped.append(t)
     return registry.subset(scoped), rejected
@@ -633,7 +645,7 @@ async def chat(
                 "чат без base_url в live-режиме: прокси не поднят, тулзы 1С недоступны "
                 "(локальные работают). Форма обязана присылать base_url."
             )
-        registry, rejected = scope_registry_for_agent(registry, agent_spec)
+        registry, rejected = scope_registry_for_agent(registry, agent_spec, base_name=req.base_name)
         if rejected:
             log.warning("агент %s: отброшены инструменты: %s", agent_spec.name, rejected)
         if skill is not None:

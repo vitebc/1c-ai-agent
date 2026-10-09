@@ -40,8 +40,10 @@ for d in agents skills patterns; do
   mkdir -p "$PROD/backend/$d"
   rsync -a --ignore-existing "$REPO/backend/$d/" "$PROD/backend/$d/"
 done
-# Одиночные файлы — без --delete (bases.conf может быть отредактирован на хосте).
-cp "$REPO/backend/bases.conf" "$PROD/backend/bases.conf"
+# Одиночные файлы. bases.conf/search-maps.conf копируются только при отсутствии:
+# они могут быть отредактированы на хосте (hot-reload) — деплой не перезаписывает.
+[ -f "$PROD/backend/bases.conf" ] || cp "$REPO/backend/bases.conf" "$PROD/backend/bases.conf"
+[ -f "$PROD/backend/search-maps.conf" ] || cp "$REPO/backend/search-maps.conf" "$PROD/backend/search-maps.conf"
 cp "$REPO/backend/Dockerfile" "$PROD/backend/Dockerfile"
 mkdir -p "$PROD/backend/alembic"
 rsync -a --delete "$REPO/backend/alembic/" "$PROD/backend/alembic/"
