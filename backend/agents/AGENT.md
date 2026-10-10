@@ -11,6 +11,8 @@ description: анализ продаж и остатков, сводные от�
 tools: [get_stock_balance, get_counterparty, run_skd_report, execute_select, validate_query, list_metadata_objects, get_metadata_structure, search_knowledge_base]
 skills: [zakazy-prokudina]
 mcp: [default, search-ka-update, rlm]
+bases: []
+users: []
 model: qwen3.8-27b-1C
 max_rounds:
 ---
@@ -25,6 +27,8 @@ max_rounds:
 - `tools` — подмножество имён из `ToolRegistry` (см. `GET /tools`). Тулзы агрегатора — полными именами `server__tool` (напр. `search-ka-update__semantic_find`). Неизвестные имена игнорируются с warning в лог.
 - `skills` — имена из `backend/skills`; `[]` — без скилов, `["*"]` — все скилы. Неизвестные игнорируются с warning.
 - `mcp` — источники инструментов: `default` (прокси 1С) + имена подсерверов агрегатора (`AGG_MCP_URL`), напр. `mcp: [default, search-ka-update, rlm]`. Одиночная строка `mcp: default` тоже валидна. Тулза попадает агенту только если её сервер в этом списке (иначе warning + отсев); локальные (`search_knowledge_base`, `get_pattern`) доступны всегда.
+- `bases` — опциональный список имён баз из мапы ONEC_BASES, для которых агент доступен. Пусто/`[]` — все базы. Сравнение без учёта регистра.
+- `users` — опциональный список пользователей 1С (onec_id), которым агент доступен. Пусто/`[]` — все пользователи. Агент виден, если база сессии ∈ bases (или пусто) И пользователь ∈ users (или пусто). `GET /agents` фильтрует по JWT (sub → onec_id) и `base_name`; явный выбор невидимого агента в чате — 403.
 - `model` — опциональный оверрайд `settings.llm_model`. Пусто — модель из конфига.
 - `max_rounds` — опциональный оверрайд `settings.agent_max_rounds` (1–30). Пусто — дефолт.
 - Тело после второго `---` — системный промпт агента, ЗАМЕНЯЕТ базовый. Может быть пустым (тогда базовый).

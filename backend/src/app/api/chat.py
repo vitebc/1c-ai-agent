@@ -438,8 +438,24 @@ async def list_tools(
 
 
 @router.get("/agents")
-async def list_agents(agents: AgentRegistry = Depends(get_agent_registry)) -> JSONResponse:  # noqa: B008
-    """Агенты для дропдауна формы 1С: имя + title + описание + инструменты + битые файлы."""
+async def list_agents(
+    agents: AgentRegistry = Depends(get_agent_registry),  # noqa: B008
+    authorization: str | None = Header(default=None),  # noqa: B008 — JWT per-user RLS
+    base_name: str | None = Query(default=None, max_length=128, description="База сессии для фильтра доступности"),
+) -> JSONResponse:
+    """Агенты для дропдауна формы 1С: имя + title + описание + инструменты + битые файлы.
+
+    Доступность (AGENT.md: bases/users): без валидного JWT отдаём только агентов
+    без ограничений (безопасный дефолт для старых клиентов); с JWT — фильтруем
+    по onec_id из sub и base_name запроса (база сессии).
+    """
+    onec_id: str | None = None
+    token = extract_bearer_token(authorization)
+    if token is not None and settings.jwt_secret:
+        payload = validate_hs256(token, settings.jwt_secret)
+        if payload is not None:
+            onec_id = str(payload.get("sub", "")).strip() or None
+    visible = [a for a in agents.agents if a.visible_for(base_name, onec_id)]
     return JSONResponse(
         {
             "default": settings.default_agent,
@@ -451,8 +467,10 @@ async def list_agents(agents: AgentRegistry = Depends(get_agent_registry)) -> JS
                     "mcp": list(a.mcp_servers),
                     "tools": list(a.tools),
                     "skills": list(a.skills),
+                    "bases": list(a.bases),
+                    "users": list(a.users),
                 }
-                for a in agents.agents
+                for a in visible
             ],
             "errors": list(agents.errors),
         }
@@ -591,6 +609,21 @@ async def chat(
                 agent_spec = agents.agents[0]
             if agent_spec is None:
                 raise HTTPException(status_code=500, detail="no agents configured")
+        # Доступность (AGENT.md: bases/users): явный выбор чужого агента — 403,
+        # залипший в сессии невидимый — отвязываем и падаем на дефолт.
+        if not agent_spec.visible_for(chat_session.base_name, req.user_id):
+            if req.agent is not None:
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"агент {agent_spec.name} недоступен для этой базы/пользователя ({agent_spec.access_note()})",
+                )
+            chat_session.agent_name = None
+            default_agent = agents.get(settings.default_agent)
+            candidates = [default_agent] if default_agent else []
+            candidates += [a for a in agents.agents if a.name != settings.default_agent]
+            agent_spec = next((a for a in candidates if a.visible_for(chat_session.base_name, req.user_id)), None)
+            if agent_spec is None:
+                raise HTTPException(status_code=403, detail="нет доступных агентов для этой базы/пользователя")
         chat_session.agent_name = agent_spec.name
         # Модель: оверрайд из AGENT.md, иначе из конфига.
         if agent_spec.model and agent_spec.model != settings.llm_model:

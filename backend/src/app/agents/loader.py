@@ -37,6 +37,11 @@ class Agent:
     # агрегатора (напр. "search-ka-update", "rlm"). Локальные тулзы
     # (server="local": БЗ, паттерны) доступны всегда, вне отбора.
     mcp_servers: tuple[str, ...] = ("default",)
+    # Ограничение доступности (пусто = всем): имена баз из мапы ONEC_BASES и
+    # onec_id пользователей 1С. Агент виден, если база сессии ∈ bases (или
+    # bases пуст) И onec_id пользователя ∈ users (или users пуст).
+    bases: tuple[str, ...] = ()
+    users: tuple[str, ...] = ()
     model: str = ""  # опциональный оверрайд settings.llm_model; пусто = из конфига
     max_rounds: int | None = None  # опциональный оверрайд settings.agent_max_rounds
     prompt: str = ""
@@ -49,6 +54,31 @@ class Agent:
     def allows_skill(self, skill_name: str) -> bool:
         """Доступен ли скил внутри агента."""
         return self.allows_all_skills or skill_name in self.skills
+
+    def visible_for(self, base_name: str | None, onec_id: str | None) -> bool:
+        """Виден ли агент для пары (база сессии, пользователь 1С).
+
+        Пустой список = без ограничения. Сравнение баз — по нижнему регистру
+        (мапа ONEC_BASES хранит имена в нижнем), onec_id — как есть.
+        """
+        if self.bases:
+            b = (base_name or "").strip().lower()
+            if not any(b == x.strip().lower() for x in self.bases):
+                return False
+        if self.users:
+            u = (onec_id or "").strip()
+            if not any(u == x.strip() for x in self.users):
+                return False
+        return True
+
+    def access_note(self) -> str:
+        """Человекочитаемое описание ограничений (для GET /agents)."""
+        parts: list[str] = []
+        if self.bases:
+            parts.append("базы: " + ", ".join(self.bases))
+        if self.users:
+            parts.append("пользователи: " + ", ".join(self.users))
+        return "; ".join(parts)
 
 
 def parse_agent_file(path: Path) -> Agent:
@@ -87,6 +117,18 @@ def parse_agent_file(path: Path) -> Agent:
             f"{path}: нужен mcp: default или [default, search-ka-update], получено {meta.get('mcp')!r}"
         )
     mcp_servers = tuple(m.strip() for m in raw_mcp)
+
+    def _opt_list(key: str) -> tuple[str, ...]:
+        """Опциональный список строк (bases/users): пусто или [] = без ограничения."""
+        raw = meta.get(key, [])
+        if isinstance(raw, str):
+            raw = [raw] if raw.strip() else []
+        if not isinstance(raw, list) or any(not isinstance(x, str) or not x.strip() for x in raw):
+            raise AgentFormatError(f"{path}: {key} — список строк (пусто = всем), получено {meta.get(key)!r}")
+        return tuple(x.strip() for x in raw if x.strip())
+
+    bases = _opt_list("bases")
+    users = _opt_list("users")
     model = meta.get("model", "")
     if model is None:
         model = ""
@@ -108,6 +150,8 @@ def parse_agent_file(path: Path) -> Agent:
         tools=tuple(tools),
         skills=tuple(skills),
         mcp_servers=mcp_servers,
+        bases=bases,
+        users=users,
         model=model.strip(),
         max_rounds=max_rounds,
         prompt=prompt,

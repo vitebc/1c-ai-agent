@@ -183,6 +183,104 @@ def test_list_agents(tmp_path: Path) -> None:
         pass
 
 
+def _access_client(tmp_path: Path, script: list[AssistantMessage]) -> TestClient:
+    """Клиент с дефолтным ассистентом + ограниченным агентом (базы/пользователи)."""
+    agents_dir = tmp_path / "agents"
+    skills_dir = tmp_path / "skills"
+    assistant_md = (
+        "---\nname: assistant\ntitle: Ассистент\ndescription: общий\n"
+        'tools: [get_counterparty, get_stock_balance]\nskills: ["*"]\n'
+        "mcp: default\nmodel:\n---\n\nПромпт ассистента.\n"
+    )
+    restricted_md = (
+        "---\nname: vip\ntitle: VIP\ndescription: только для своих\n"
+        "tools: [get_counterparty]\nskills: []\n"
+        "mcp: default\nbases: [ai_base]\nusers: [Бухгалтер (СидороваНП)]\n"
+        "model:\n---\n\nПромпт VIP.\n"
+    )
+    _write_agent(agents_dir, "assistant", assistant_md)
+    _write_agent(agents_dir, "vip", restricted_md)
+    _write_skill(skills_dir, "zakazy", "zakazy")
+    fake = FakeLLM(script)
+    app.dependency_overrides[get_llm] = lambda: fake
+    app.dependency_overrides[get_registry] = lambda: ToolRegistry(MOCK_ONEC_TOOLS)
+    app.dependency_overrides[get_skill_registry] = lambda: SkillRegistry.load(skills_dir)
+    app.dependency_overrides[get_agent_registry] = lambda: AgentRegistry.load(agents_dir)
+    return TestClient(app)
+
+
+def test_visible_for_semantics(tmp_path: Path) -> None:
+    _write_agent(tmp_path, "vip", (
+        "---\nname: vip\ntitle: VIP\ndescription: d\n"
+        "tools: [get_counterparty]\nskills: []\nmcp: default\n"
+        "bases: [ai_base]\nusers: [Бухгалтер (СидороваНП)]\nmodel:\n---\n\np.\n"
+    ))
+    reg = AgentRegistry.load(tmp_path)
+    vip = reg.get("vip")
+    assert vip is not None and vip.bases == ("ai_base",) and vip.users == ("Бухгалтер (СидороваНП)",)
+    assert vip.visible_for("ai_base", "Бухгалтер (СидороваНП)")
+    assert vip.visible_for("AI_BASE", "Бухгалтер (СидороваНП)")  # база — без учёта регистра
+    assert not vip.visible_for("doc3_test", "Бухгалтер (СидороваНП)")
+    assert not vip.visible_for("ai_base", "ИвановПВ")
+    assert not vip.visible_for(None, None)
+    # Пустые списки = всем.
+    _write_agent(tmp_path / "o", "open", (
+        "---\nname: open\ntitle: Open\ndescription: d\n"
+        "tools: [get_counterparty]\nskills: []\nmcp: default\nbases: []\nusers: []\nmodel:\n---\n\np.\n"
+    ))
+    open_reg = AgentRegistry.load(tmp_path / "o")
+    assert open_reg.get("open").visible_for(None, None)
+
+
+def test_list_agents_filters_by_access(tmp_path: Path) -> None:
+    client = _access_client(tmp_path, [AssistantMessage(content="x")])
+    try:
+        with client:
+            # Без JWT — только агенты без ограничений.
+            body = client.get("/agents").json()
+            assert sorted(a["name"] for a in body["agents"]) == ["assistant"]
+            # С base_name, но без JWT — vip по-прежнему скрыт (нет onec_id).
+            body = client.get("/agents", params={"base_name": "ai_base"}).json()
+            assert sorted(a["name"] for a in body["agents"]) == ["assistant"]
+    finally:
+        pass
+
+
+def test_chat_agent_access_403_and_fallback(tmp_path: Path, monkeypatch) -> None:
+    # Базы резолвятся через мапу (иначе строгий резолвер вернёт 400):
+    # закрытые порты — быстрый refused, реестр из статического набора.
+    from app.onec import bases as bases_mod
+
+    monkeypatch.setattr(
+        bases_mod, "get_bases_map", lambda: {"ai_base": "http://127.0.0.1:9/a", "doc3_test": "http://127.0.0.1:9/b"}
+    )
+    client = _access_client(tmp_path, [AssistantMessage(content="a"), AssistantMessage(content="b")])
+    try:
+        with client:
+            # Явный выбор невидимого агента — 403.
+            r = client.post("/chat", json={"message": "hi", "user_id": "agent-vip1", "agent": "vip"})
+            assert r.status_code == 403, r.text
+            # Чужая база/пользователь с явным выбором — тоже 403.
+            r = client.post(
+                "/chat", json={"message": "hi", "user_id": "ИвановПВ", "agent": "vip", "base_name": "ai_base"}
+            )
+            assert r.status_code == 403, r.text
+            # Залипший в сессии агент стал невидимым (условие по базе) — падаем на дефолт.
+            r1 = client.post("/chat", json={"message": "привет", "user_id": "agent-vip2"})
+            sid = _parse_sse(r1.text)["done"][0]["session_id"]
+            # Та же сессия, но теперь заявлена чужая база — vip (если бы залип) невидим;
+            # дефолт assistant без ограничений проходит.
+            r2 = client.post(
+                "/chat", json={"message": "ещё", "user_id": "agent-vip2", "session_id": sid, "base_name": "doc3_test"}
+            )
+            assert r2.status_code == 200, r2.text
+            assert _parse_sse(r2.text)["done"][0]["agent"] == "assistant"
+    finally:
+        _cleanup_user("agent-vip1")
+        _cleanup_user("ИвановПВ")
+        _cleanup_user("agent-vip2")
+
+
 def test_list_skills_filtered_by_agent(tmp_path: Path) -> None:
     client, _ = _api_client(tmp_path, [AssistantMessage(content="x")])
     try:
