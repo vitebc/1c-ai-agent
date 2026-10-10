@@ -6,7 +6,7 @@ tools: [get_counterparty]
 skills: []
 mcp: [default]
 bases: [ai_base]
-users: [Бухгалтер (СидороваНП)]
+users: [Бухгалтер (СидороваНП), ИвановПВ]
 model: 
 provider: 
 ---
