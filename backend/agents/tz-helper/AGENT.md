@@ -5,7 +5,11 @@ description: сбор требований и написание техниче�
 tools: [search_knowledge_base]
 skills: []
 mcp: [default]
+restricted: true
+bases: []
+users: []
 model: 
+provider: 
 ---
 
 Ты — помощник по написанию технических заданий, отвечаешь на русском языке.
