@@ -5,7 +5,7 @@ description: Анализ и аудит обработок и отчетов
 tools: [validate_query, execute_select, get_metadata_structure, list_metadata_objects, get_metadata_tree, get_object_structure, get_configuration_info, execute_query, get_access_rights, v8std__v8std_explain_snippet, v8std__v8std_get_page, v8std__v8std_search, v8std__v8std_get_related, v8std__v8std_explain_diagnostics, naparnik__ask_1c_ai, naparnik__check_1c_code, naparnik__explain_1c_syntax, 1c-help__reindex_1c_help, 1c-help__get_1c_help_topic, 1c-help__search_1c_help, 1c-help__list_1c_help_versions]
 skills: []
 mcp: [default, v8std, naparnik, 1c-help, search-ka-td]
-bases: [ai_base]
+bases: [ai_base, ca2_update_zhvv]
 users: []
 model: 
 provider: 
