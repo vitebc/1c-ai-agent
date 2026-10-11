@@ -2,7 +2,7 @@
 name: restricted-test
 title: Тестовый закрытый
 description: тест restricted=true
-tools: []
+tools: [get_counterparty]
 skills: []
 mcp: [default]
 restricted: true
