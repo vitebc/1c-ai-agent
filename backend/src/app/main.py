@@ -10,7 +10,11 @@ from app.api.stats import router as stats_router
 from app.config import settings
 
 # Без этого INFO-логи петли (agent1c.loop) тонут: root-логгер по умолчанию WARNING.
-logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
+# LOG_LEVEL — переменная окружения (по умолчанию INFO); DEBUG включает логи
+# доступности агентов (base_name, JWT) в GET /agents и POST /chat.
+import os
+_log_level = os.environ.get("LOG_LEVEL", "INFO").upper()
+logging.basicConfig(level=_log_level, format="%(levelname)s %(name)s: %(message)s")
 
 
 def _setup_loop_file_logging() -> None:
