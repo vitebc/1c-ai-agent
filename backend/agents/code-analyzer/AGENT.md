@@ -6,7 +6,7 @@ tools: [validate_query, execute_select, get_metadata_structure, list_metadata_ob
 skills: []
 mcp: [default, v8std, naparnik, 1c-help, search-ka-td]
 bases: [ai_base, ca2_td_update, ca2_update_zhvv]
-users: []
+users: [Жеребятьев Виталий Викторович]
 model: 
 provider: 
 ---
