@@ -23,6 +23,9 @@ def _parse_value(raw: str, source: str, key: str) -> Any:
         return [p.strip().strip("'\"") for p in raw[1:-1].split(",") if p.strip().strip("'\"")]
     if len(raw) >= 2 and raw[0] == raw[-1] and raw[0] in "'\"":
         return raw[1:-1]
+    # YAML-bool (без кавычек): плоский парсер без PyYAML.
+    if raw in ("true", "false"):
+        return raw == "true"
     return raw
 
 

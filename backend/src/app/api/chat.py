@@ -467,6 +467,7 @@ async def list_agents(
                     "mcp": list(a.mcp_servers),
                     "tools": list(a.tools),
                     "skills": list(a.skills),
+                    "restricted": a.restricted,
                     "bases": list(a.bases),
                     "users": list(a.users),
                 }

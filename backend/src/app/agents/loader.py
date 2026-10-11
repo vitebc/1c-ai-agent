@@ -40,6 +40,8 @@ class Agent:
     # Ограничение доступности (пусто = всем): имена баз из мапы ONEC_BASES и
     # onec_id пользователей 1С. Агент виден, если база сессии ∈ bases (или
     # bases пуст) И onec_id пользователя ∈ users (или users пуст).
+    # restricted=true — агент недоступен никому (переопределяет bases/users).
+    restricted: bool = False
     bases: tuple[str, ...] = ()
     users: tuple[str, ...] = ()
     model: str = ""  # опциональный оверрайд settings.llm_model; пусто = из конфига
@@ -60,7 +62,10 @@ class Agent:
 
         Пустой список = без ограничения. Сравнение баз — по нижнему регистру
         (мапа ONEC_BASES хранит имена в нижнем), onec_id — как есть.
+        restricted=true — агент не виден никому.
         """
+        if self.restricted:
+            return False
         if self.bases:
             b = (base_name or "").strip().lower()
             if not any(b == x.strip().lower() for x in self.bases):
@@ -73,6 +78,8 @@ class Agent:
 
     def access_note(self) -> str:
         """Человекочитаемое описание ограничений (для GET /agents)."""
+        if self.restricted:
+            return "недоступен никому"
         parts: list[str] = []
         if self.bases:
             parts.append("базы: " + ", ".join(self.bases))
@@ -127,6 +134,10 @@ def parse_agent_file(path: Path) -> Agent:
             raise AgentFormatError(f"{path}: {key} — список строк (пусто = всем), получено {meta.get(key)!r}")
         return tuple(x.strip() for x in raw if x.strip())
 
+    raw_restricted = meta.get("restricted", False)
+    if not isinstance(raw_restricted, bool):
+        raise AgentFormatError(f"{path}: restricted — true/false, получено {raw_restricted!r}")
+    restricted = raw_restricted
     bases = _opt_list("bases")
     users = _opt_list("users")
     model = meta.get("model", "")
@@ -150,6 +161,7 @@ def parse_agent_file(path: Path) -> Agent:
         tools=tuple(tools),
         skills=tuple(skills),
         mcp_servers=mcp_servers,
+        restricted=restricted,
         bases=bases,
         users=users,
         model=model.strip(),

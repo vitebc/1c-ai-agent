@@ -198,8 +198,14 @@ def _access_client(tmp_path: Path, script: list[AssistantMessage]) -> TestClient
         "mcp: default\nbases: [ai_base]\nusers: [Бухгалтер (СидороваНП)]\n"
         "model:\n---\n\nПромпт VIP.\n"
     )
+    locked_md = (
+        "---\nname: locked\ntitle: Закрыт\ndescription: никому\n"
+        "tools: [get_counterparty]\nskills: []\n"
+        "mcp: default\nrestricted: true\nmodel:\n---\n\nПромпт закрытого.\n"
+    )
     _write_agent(agents_dir, "assistant", assistant_md)
     _write_agent(agents_dir, "vip", restricted_md)
+    _write_agent(agents_dir, "locked", locked_md)
     _write_skill(skills_dir, "zakazy", "zakazy")
     fake = FakeLLM(script)
     app.dependency_overrides[get_llm] = lambda: fake
@@ -232,6 +238,27 @@ def test_visible_for_semantics(tmp_path: Path) -> None:
     assert open_reg.get("open").visible_for(None, None)
 
 
+def test_restricted_agent_hidden_from_all(tmp_path: Path) -> None:
+    """restricted=true — агент не виден никому, даже при совпадении bases/users."""
+    _write_agent(tmp_path, "locked", (
+        "---\nname: locked\ntitle: Закрыт\ndescription: d\n"
+        "tools: [get_counterparty]\nskills: []\nmcp: default\n"
+        "restricted: true\nbases: [ai_base]\nusers: [Бухгалтер (СидороваНП)]\nmodel:\n---\n\np.\n"
+    ))
+    reg = AgentRegistry.load(tmp_path)
+    locked = reg.get("locked")
+    assert locked is not None and locked.restricted
+    assert not locked.visible_for("ai_base", "Бухгалтер (СидороваНП)")
+    assert not locked.visible_for(None, None)
+    assert locked.access_note() == "недоступен никому"
+    # restricted без списков — тоже скрыт.
+    _write_agent(tmp_path / "o", "locked2", (
+        "---\nname: locked2\ntitle: Закрыт2\ndescription: d\n"
+        "tools: [get_counterparty]\nskills: []\nmcp: default\nrestricted: true\nmodel:\n---\n\np.\n"
+    ))
+    assert not AgentRegistry.load(tmp_path / "o").get("locked2").visible_for(None, None)
+
+
 def test_list_agents_filters_by_access(tmp_path: Path) -> None:
     client = _access_client(tmp_path, [AssistantMessage(content="x")])
     try:
@@ -242,6 +269,9 @@ def test_list_agents_filters_by_access(tmp_path: Path) -> None:
             # С base_name, но без JWT — vip по-прежнему скрыт (нет onec_id).
             body = client.get("/agents", params={"base_name": "ai_base"}).json()
             assert sorted(a["name"] for a in body["agents"]) == ["assistant"]
+            # restricted=true не виден никому, даже с точным совпадением bases/users.
+            body = client.get("/agents", params={"base_name": "ai_base"}).json()
+            assert all(a["name"] != "locked" for a in body["agents"])
     finally:
         pass
 
@@ -263,6 +293,12 @@ def test_chat_agent_access_403_and_fallback(tmp_path: Path, monkeypatch) -> None
             # Чужая база/пользователь с явным выбором — тоже 403.
             r = client.post(
                 "/chat", json={"message": "hi", "user_id": "ИвановПВ", "agent": "vip", "base_name": "ai_base"}
+            )
+            assert r.status_code == 403, r.text
+            # restricted=true — 403 даже у «своего» пользователя из users.
+            r = client.post(
+                "/chat",
+                json={"message": "hi", "user_id": "Бухгалтер (СидороваНП)", "agent": "locked", "base_name": "ai_base"},
             )
             assert r.status_code == 403, r.text
             # Залипший в сессии агент стал невидимым (условие по базе) — падаем на дефолт.
