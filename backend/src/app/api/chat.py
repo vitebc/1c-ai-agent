@@ -451,11 +451,17 @@ async def list_agents(
     """
     onec_id: str | None = None
     token = extract_bearer_token(authorization)
+    jwt_valid = False
     if token is not None and settings.jwt_secret:
         payload = validate_hs256(token, settings.jwt_secret)
         if payload is not None:
             onec_id = str(payload.get("sub", "")).strip() or None
+            jwt_valid = True
     visible = [a for a in agents.agents if a.visible_for(base_name, onec_id)]
+    log.debug(
+        "list_agents base_name=%s jwt=%s onec_id=%s visible=%d/%d",
+        base_name, "yes" if jwt_valid else "no", onec_id, len(visible), len(agents.agents),
+    )
     return JSONResponse(
         {
             "default": settings.default_agent,
@@ -567,6 +573,10 @@ async def chat(
         jwt_token, _onec_user = resolve_onec_auth(authorization)
     except ValueError as e:
         raise HTTPException(status_code=401, detail=str(e)) from e
+    log.debug(
+        "chat base_name=%s user_id=%s agent=%s jwt=%s",
+        req.base_name, req.user_id, req.agent, "yes" if authorization else "no",
+    )
     # Создаём/находим сессию и грузим историю
     async with SessionFactory() as session:
         user = (await session.execute(select(User).where(User.onec_id == req.user_id))).scalar_one_or_none()
