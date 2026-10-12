@@ -65,7 +65,7 @@ services:
   # CPU-сервис эмбеддингов (deepvk/USER-bge-m3, кириллица). Тяжёлый образ (~2-3 ГБ
   # с моделью), поэтому за профилем rag — понадобится на шаге 2 (RAG).
   tei:
-    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.7
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.6
     profiles: ["rag"]
     restart: unless-stopped
     environment:
