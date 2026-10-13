@@ -6,11 +6,41 @@
 
 from __future__ import annotations
 
+import logging
+import sys
 from typing import Any, Protocol
 from urllib.parse import urlsplit
 
 from mcp import ClientSession
 from mcp.client.streamable_http import streamablehttp_client
+
+log = logging.getLogger("agent1c.onec")
+
+
+def _extract_real_error(exc: BaseException) -> str:
+    """Распаковать anyio ExceptionGroup / TaskGroup до реального sub-exception.
+
+    MCP SDK использует anyio.TaskGroup внутри; при обрыве SSE или таймауте
+    возникает "unhandled errors in a TaskGroup (N sub-exception)" без деталей.
+    Здесь достаём фактическую причину для логирования и сообщения пользователю.
+    """
+    # Python 3.11+ native ExceptionGroup
+    if hasattr(sys.modules.get("__builtins__", {}), "BaseExceptionGroup"):
+        pass
+    try:
+        EG = ExceptionGroup  # type: ignore[name-defined]
+    except NameError:
+        return f"{type(exc).__name__}: {exc}"[:500]
+
+    def dig(e: BaseException, depth: int = 0) -> str:
+        if isinstance(e, EG):
+            subs = [dig(s, depth + 1) for s in e.exceptions]
+            return "; ".join(subs)[:800]
+        return f"[{depth}]{type(e).__name__}: {e}"[:400]
+
+    result = dig(exc)
+    log.warning("MCP call_tool real error chain: %s", result)
+    return result
 
 
 class OnecError(Exception):
@@ -44,20 +74,43 @@ class McpOnecClient:
         return {"Authorization": f"Bearer {self._token}"} if self._token else {}
 
     async def list_tools(self) -> list[dict[str, Any]]:
-        async with streamablehttp_client(self._url, headers=self._headers()) as (read, write, _):
-            async with ClientSession(read, write) as session:
-                await session.initialize()
-                result = await session.list_tools()
-        return [{"name": t.name, "description": t.description, "inputSchema": t.inputSchema} for t in result.tools]
+        try:
+            async with streamablehttp_client(self._url, headers=self._headers()) as (read, write, _):
+                async with ClientSession(read, write) as session:
+                    await session.initialize()
+                    result = await session.list_tools()
+            return [{"name": t.name, "description": t.description, "inputSchema": t.inputSchema} for t in result.tools]
+        except BaseException as e:
+            raise type(e)(f"list_tools {self._url}: {_extract_real_error(e)}") from None
 
     async def call_tool(self, name: str, arguments: dict[str, Any]) -> Any:
-        async with streamablehttp_client(self._url, headers=self._headers()) as (read, write, _):
-            async with ClientSession(read, write) as session:
-                await session.initialize()
-                result = await session.call_tool(name, arguments)
+        import time as _time
+        _t0 = _time.monotonic()
+        try:
+            async with streamablehttp_client(self._url, headers=self._headers()) as (read, write, _):
+                async with ClientSession(read, write) as session:
+                    await session.initialize()
+                    result = await session.call_tool(name, arguments)
+        except BaseException as e:
+            elapsed_ms = int((_time.monotonic() - _t0) * 1000)
+            real_err = _extract_real_error(e)
+            log.error("call_tool %s FAILED after %dms: %s", name, elapsed_ms, real_err[:500])
+            # Перебрасываем с реальной причиной вместо абстрактного TaskGroup
+            inner = self._first_sub_exception(e)
+            raise OnecError(f"tool '{name}' failed ({type(inner).__name__}): {str(inner)[:300]}") from None
         if result.isError:
             raise OnecError(_content_text(result))
         return _parse_content(result)
+
+    @staticmethod
+    def _first_sub_exception(exc: BaseException) -> BaseException:
+        """Распаковать ExceptionGroup до первого реального sub-exception."""
+        while hasattr(exc, "exceptions"):
+            excs = getattr(exc, "exceptions", [])
+            if not excs:
+                break
+            exc = excs[0]
+        return exc
 
     @property
     def url(self) -> str:

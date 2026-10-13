@@ -19,7 +19,7 @@
 			<ShowTitle>false</ShowTitle>
 			<ExtendedTooltip name="Группа1РасширеннаяПодсказка" id="96"/>
 			<ChildItems>
-				<InputField name="Агент" id="92">
+				<RadioButtonField name="Агент" id="92">
 					<DataPath>Агент</DataPath>
 					<Title>
 						<v8:item>
@@ -27,13 +27,13 @@
 							<v8:content>Агент</v8:content>
 						</v8:item>
 					</Title>
-					<DropListButton>true</DropListButton>
+					<RadioButtonType>Tumbler</RadioButtonType>
 					<ContextMenu name="АгентКонтекстноеМеню" id="93"/>
 					<ExtendedTooltip name="АгентРасширеннаяПодсказка" id="94"/>
 					<Events>
 						<Event name="OnChange">АгентПриИзменении</Event>
 					</Events>
-				</InputField>
+				</RadioButtonField>
 				<InputField name="АдресБэкенда" id="1">
 					<DataPath>АдресБэкенда</DataPath>
 					<Visible>false</Visible>
@@ -67,194 +67,242 @@
 				</LabelDecoration>
 			</ChildItems>
 		</UsualGroup>
-		<Pages name="ГруппаСтраницы" id="4">
-			<PagesRepresentation>None</PagesRepresentation>
-			<ExtendedTooltip name="ГруппаСтраницыРасширеннаяПодсказка" id="5"/>
+		<UsualGroup name="Группа2" id="99">
+			<Group>AlwaysHorizontal</Group>
+			<Representation>None</Representation>
+			<ShowTitle>false</ShowTitle>
+			<ExtendedTooltip name="Группа2РасширеннаяПодсказка" id="100"/>
 			<ChildItems>
-				<Page name="СтраницаДиалог" id="6">
-					<Title>
-						<v8:item>
-							<v8:lang>ru</v8:lang>
-							<v8:content>Диалог</v8:content>
-						</v8:item>
-					</Title>
+				<UsualGroup name="Группа3" id="106">
+					<Visible>false</Visible>
+					<Group>Vertical</Group>
+					<Representation>None</Representation>
 					<ShowTitle>false</ShowTitle>
-					<ExtendedTooltip name="СтраницаДиалогРасширеннаяПодсказка" id="7"/>
+					<ExtendedTooltip name="Группа3РасширеннаяПодсказка" id="107"/>
 					<ChildItems>
-						<HTMLDocumentField name="ОтветHTML" id="11">
-							<DataPath>ОтветHTML</DataPath>
+						<RadioButtonField name="Агенты" id="103">
+							<DataPath>Агент</DataPath>
 							<TitleLocation>None</TitleLocation>
-							<ContextMenu name="ОтветHTMLКонтекстноеМеню" id="12"/>
-							<ExtendedTooltip name="ОтветHTMLРасширеннаяПодсказка" id="13"/>
-						</HTMLDocumentField>
-						<InputField name="Промпт" id="8">
-							<DataPath>Промпт</DataPath>
-							<Title>
-								<v8:item>
-									<v8:lang>ru</v8:lang>
-									<v8:content>Вопрос</v8:content>
-								</v8:item>
-							</Title>
-							<AutoMaxWidth>false</AutoMaxWidth>
-							<Height>3</Height>
-							<HorizontalStretch>true</HorizontalStretch>
-							<VerticalStretch>false</VerticalStretch>
-							<MultiLine>true</MultiLine>
-							<ContextMenu name="ПромптКонтекстноеМеню" id="9"/>
-							<ExtendedTooltip name="ПромптРасширеннаяПодсказка" id="10"/>
-						</InputField>
-						<UsualGroup name="ГруппаКоманды" id="14">
-							<Representation>None</Representation>
-							<ShowTitle>false</ShowTitle>
-							<ExtendedTooltip name="ГруппаКомандыРасширеннаяПодсказка" id="15"/>
+							<RadioButtonType>RadioButtons</RadioButtonType>
+							<ColumnsCount>1</ColumnsCount>
+							<ContextMenu name="АгентыКонтекстноеМеню" id="104"/>
+							<ExtendedTooltip name="АгентыРасширеннаяПодсказка" id="105"/>
+							<Events>
+								<Event name="OnChange">АгентПриИзменении</Event>
+							</Events>
+						</RadioButtonField>
+					</ChildItems>
+				</UsualGroup>
+				<UsualGroup name="Группа4" id="108">
+					<Representation>None</Representation>
+					<ShowTitle>false</ShowTitle>
+					<ExtendedTooltip name="Группа4РасширеннаяПодсказка" id="109"/>
+					<ChildItems>
+						<Pages name="ГруппаСтраницы" id="4">
+							<PagesRepresentation>None</PagesRepresentation>
+							<ExtendedTooltip name="ГруппаСтраницыРасширеннаяПодсказка" id="5"/>
 							<ChildItems>
-								<Button name="Отправить" id="16">
-									<Type>UsualButton</Type>
-									<DefaultButton>true</DefaultButton>
-									<CommandName>Form.Command.Отправить</CommandName>
-									<ExtendedTooltip name="ОтправитьРасширеннаяПодсказка" id="17"/>
-								</Button>
-								<CheckBoxField name="ВыполнятьВФоне" id="18">
-									<DataPath>ВыполнятьВФоне</DataPath>
-									<Visible>false</Visible>
-									<TitleLocation>Right</TitleLocation>
-									<CheckBoxType>Switcher</CheckBoxType>
-									<ContextMenu name="ВыполнятьВФонеКонтекстноеМеню" id="19"/>
-									<ExtendedTooltip name="ВыполнятьВФонеРасширеннаяПодсказка" id="20"/>
-									<Events>
-										<Event name="OnChange">ВыполнятьВФонеПриИзменении</Event>
-									</Events>
-								</CheckBoxField>
-								<InputField name="РазмерКонтекста" id="21">
-									<DataPath>РазмерКонтекста</DataPath>
+								<Page name="СтраницаДиалог" id="6">
+									<Title>
+										<v8:item>
+											<v8:lang>ru</v8:lang>
+											<v8:content>Диалог</v8:content>
+										</v8:item>
+									</Title>
+									<ShowTitle>false</ShowTitle>
+									<ExtendedTooltip name="СтраницаДиалогРасширеннаяПодсказка" id="7"/>
+									<ChildItems>
+										<HTMLDocumentField name="ОтветHTML" id="11">
+											<DataPath>ОтветHTML</DataPath>
+											<TitleLocation>None</TitleLocation>
+											<ContextMenu name="ОтветHTMLКонтекстноеМеню" id="12"/>
+											<ExtendedTooltip name="ОтветHTMLРасширеннаяПодсказка" id="13"/>
+										</HTMLDocumentField>
+										<InputField name="Промпт" id="8">
+											<DataPath>Промпт</DataPath>
+											<Title>
+												<v8:item>
+													<v8:lang>ru</v8:lang>
+													<v8:content>Вопрос</v8:content>
+												</v8:item>
+											</Title>
+											<AutoMaxWidth>false</AutoMaxWidth>
+											<Height>3</Height>
+											<HorizontalStretch>true</HorizontalStretch>
+											<VerticalStretch>false</VerticalStretch>
+											<MultiLine>true</MultiLine>
+											<ContextMenu name="ПромптКонтекстноеМеню" id="9"/>
+											<ExtendedTooltip name="ПромптРасширеннаяПодсказка" id="10"/>
+											<Events>
+												<Event name="EditTextChange">ПромптИзменениеТекстаРедактирования</Event>
+											</Events>
+										</InputField>
+										<UsualGroup name="ГруппаКоманды" id="14">
+											<Representation>None</Representation>
+											<ShowTitle>false</ShowTitle>
+											<ExtendedTooltip name="ГруппаКомандыРасширеннаяПодсказка" id="15"/>
+											<ChildItems>
+												<Button name="Отправить" id="16">
+													<Type>UsualButton</Type>
+													<DefaultButton>true</DefaultButton>
+													<CommandName>Form.Command.Отправить</CommandName>
+													<ExtendedTooltip name="ОтправитьРасширеннаяПодсказка" id="17"/>
+												</Button>
+												<CheckBoxField name="ВыполнятьВФоне" id="18">
+													<DataPath>ВыполнятьВФоне</DataPath>
+													<Visible>false</Visible>
+													<TitleLocation>Right</TitleLocation>
+													<CheckBoxType>Switcher</CheckBoxType>
+													<ContextMenu name="ВыполнятьВФонеКонтекстноеМеню" id="19"/>
+													<ExtendedTooltip name="ВыполнятьВФонеРасширеннаяПодсказка" id="20"/>
+													<Events>
+														<Event name="OnChange">ВыполнятьВФонеПриИзменении</Event>
+													</Events>
+												</CheckBoxField>
+												<InputField name="РазмерКонтекста" id="21">
+													<DataPath>РазмерКонтекста</DataPath>
+													<Visible>false</Visible>
+													<Title>
+														<v8:item>
+															<v8:lang>ru</v8:lang>
+															<v8:content>Размер контекста</v8:content>
+														</v8:item>
+													</Title>
+													<SpinButton>true</SpinButton>
+													<ContextMenu name="РазмерКонтекстаКонтекстноеМеню" id="22"/>
+													<ExtendedTooltip name="РазмерКонтекстаРасширеннаяПодсказка" id="23"/>
+													<Events>
+														<Event name="OnChange">РазмерКонтекстаПриИзменении</Event>
+													</Events>
+												</InputField>
+												<Button name="Очистить" id="24">
+													<Type>UsualButton</Type>
+													<Visible>false</Visible>
+													<CommandName>Form.Command.Очистить</CommandName>
+													<ExtendedTooltip name="ОчиститьРасширеннаяПодсказка" id="25"/>
+												</Button>
+												<Button name="ПрикрепитьФайлы" id="26">
+													<Type>UsualButton</Type>
+													<Visible>false</Visible>
+													<CommandName>Form.Command.ПрикрепитьФайлы</CommandName>
+													<ExtendedTooltip name="ПрикрепитьФайлыРасширеннаяПодсказка" id="27"/>
+												</Button>
+												<Button name="ОчиститьВложения" id="28">
+													<Type>UsualButton</Type>
+													<Visible>false</Visible>
+													<CommandName>Form.Command.ОчиститьВложения</CommandName>
+													<ExtendedTooltip name="ОчиститьВложенияРасширеннаяПодсказка" id="29"/>
+												</Button>
+												<LabelDecoration name="Декорация1" id="110">
+													<Title formatted="false">
+														<v8:item>
+															<v8:lang>ru</v8:lang>
+															<v8:content>Отправить Crtl+Enter</v8:content>
+														</v8:item>
+													</Title>
+													<ContextMenu name="Декорация1КонтекстноеМеню" id="111"/>
+													<ExtendedTooltip name="Декорация1РасширеннаяПодсказка" id="112"/>
+												</LabelDecoration>
+											</ChildItems>
+										</UsualGroup>
+									</ChildItems>
+								</Page>
+								<Page name="СтраницаВложения" id="30">
 									<Visible>false</Visible>
 									<Title>
 										<v8:item>
 											<v8:lang>ru</v8:lang>
-											<v8:content>Размер контекста</v8:content>
+											<v8:content>Вложения</v8:content>
 										</v8:item>
 									</Title>
-									<SpinButton>true</SpinButton>
-									<ContextMenu name="РазмерКонтекстаКонтекстноеМеню" id="22"/>
-									<ExtendedTooltip name="РазмерКонтекстаРасширеннаяПодсказка" id="23"/>
-									<Events>
-										<Event name="OnChange">РазмерКонтекстаПриИзменении</Event>
-									</Events>
-								</InputField>
-								<Button name="Очистить" id="24">
-									<Type>UsualButton</Type>
-									<Visible>false</Visible>
-									<CommandName>Form.Command.Очистить</CommandName>
-									<ExtendedTooltip name="ОчиститьРасширеннаяПодсказка" id="25"/>
-								</Button>
-								<Button name="ПрикрепитьФайлы" id="26">
-									<Type>UsualButton</Type>
-									<Visible>false</Visible>
-									<CommandName>Form.Command.ПрикрепитьФайлы</CommandName>
-									<ExtendedTooltip name="ПрикрепитьФайлыРасширеннаяПодсказка" id="27"/>
-								</Button>
-								<Button name="ОчиститьВложения" id="28">
-									<Type>UsualButton</Type>
-									<Visible>false</Visible>
-									<CommandName>Form.Command.ОчиститьВложения</CommandName>
-									<ExtendedTooltip name="ОчиститьВложенияРасширеннаяПодсказка" id="29"/>
-								</Button>
+									<ExtendedTooltip name="СтраницаВложенияРасширеннаяПодсказка" id="31"/>
+									<ChildItems>
+										<InputField name="ВложенияТекст" id="32">
+											<DataPath>ВложенияТекст</DataPath>
+											<ReadOnly>true</ReadOnly>
+											<Title>
+												<v8:item>
+													<v8:lang>ru</v8:lang>
+													<v8:content>Вложения (текст)</v8:content>
+												</v8:item>
+											</Title>
+											<AutoMaxWidth>false</AutoMaxWidth>
+											<Height>3</Height>
+											<MultiLine>true</MultiLine>
+											<ContextMenu name="ВложенияТекстКонтекстноеМеню" id="33"/>
+											<ExtendedTooltip name="ВложенияТекстРасширеннаяПодсказка" id="34"/>
+										</InputField>
+										<Table name="ТаблицаВложений" id="35">
+											<DataPath>ТаблицаВложений</DataPath>
+											<RowFilter xsi:nil="true"/>
+											<ContextMenu name="ТаблицаВложенийКонтекстноеМеню" id="36"/>
+											<AutoCommandBar name="ТаблицаВложенийКоманднаяПанель" id="37"/>
+											<ExtendedTooltip name="ТаблицаВложенийРасширеннаяПодсказка" id="38"/>
+											<SearchStringAddition name="ТаблицаВложенийСтрокаПоиска" id="39">
+												<AdditionSource>
+													<Item>ТаблицаВложений</Item>
+													<Type>SearchStringRepresentation</Type>
+												</AdditionSource>
+												<ContextMenu name="ТаблицаВложенийСтрокаПоискаКонтекстноеМеню" id="40"/>
+												<ExtendedTooltip name="ТаблицаВложенийСтрокаПоискаРасширеннаяПодсказка" id="41"/>
+											</SearchStringAddition>
+											<ViewStatusAddition name="ТаблицаВложенийСостояниеПросмотра" id="42">
+												<AdditionSource>
+													<Item>ТаблицаВложений</Item>
+													<Type>ViewStatusRepresentation</Type>
+												</AdditionSource>
+												<ContextMenu name="ТаблицаВложенийСостояниеПросмотраКонтекстноеМеню" id="43"/>
+												<ExtendedTooltip name="ТаблицаВложенийСостояниеПросмотраРасширеннаяПодсказка" id="44"/>
+											</ViewStatusAddition>
+											<SearchControlAddition name="ТаблицаВложенийУправлениеПоиском" id="45">
+												<AdditionSource>
+													<Item>ТаблицаВложений</Item>
+													<Type>SearchControl</Type>
+												</AdditionSource>
+												<ContextMenu name="ТаблицаВложенийУправлениеПоискомКонтекстноеМеню" id="46"/>
+												<ExtendedTooltip name="ТаблицаВложенийУправлениеПоискомРасширеннаяПодсказка" id="47"/>
+											</SearchControlAddition>
+											<ChildItems>
+												<InputField name="Отправлять" id="48">
+													<DataPath>ТаблицаВложений.Отправлять</DataPath>
+													<ContextMenu name="ОтправлятьКонтекстноеМеню" id="49"/>
+													<ExtendedTooltip name="ОтправлятьРасширеннаяПодсказка" id="50"/>
+												</InputField>
+												<InputField name="Направление" id="51">
+													<DataPath>ТаблицаВложений.Направление</DataPath>
+													<ContextMenu name="НаправлениеКонтекстноеМеню" id="52"/>
+													<ExtendedTooltip name="НаправлениеРасширеннаяПодсказка" id="53"/>
+												</InputField>
+												<InputField name="Имя" id="54">
+													<DataPath>ТаблицаВложений.Имя</DataPath>
+													<ContextMenu name="ИмяКонтекстноеМеню" id="55"/>
+													<ExtendedTooltip name="ИмяРасширеннаяПодсказка" id="56"/>
+												</InputField>
+												<InputField name="MIME" id="57">
+													<DataPath>ТаблицаВложений.MIME</DataPath>
+													<ContextMenu name="MIMEКонтекстноеМеню" id="58"/>
+													<ExtendedTooltip name="MIMEРасширеннаяПодсказка" id="59"/>
+												</InputField>
+												<InputField name="РазмерБайт" id="60">
+													<DataPath>ТаблицаВложений.РазмерБайт</DataPath>
+													<ContextMenu name="РазмерБайтКонтекстноеМеню" id="61"/>
+													<ExtendedTooltip name="РазмерБайтРасширеннаяПодсказка" id="62"/>
+												</InputField>
+												<InputField name="Адрес" id="63">
+													<DataPath>ТаблицаВложений.Адрес</DataPath>
+													<ContextMenu name="АдресКонтекстноеМеню" id="64"/>
+													<ExtendedTooltip name="АдресРасширеннаяПодсказка" id="65"/>
+												</InputField>
+											</ChildItems>
+										</Table>
+									</ChildItems>
+								</Page>
 							</ChildItems>
-						</UsualGroup>
+						</Pages>
 					</ChildItems>
-				</Page>
-				<Page name="СтраницаВложения" id="30">
-					<Visible>false</Visible>
-					<Title>
-						<v8:item>
-							<v8:lang>ru</v8:lang>
-							<v8:content>Вложения</v8:content>
-						</v8:item>
-					</Title>
-					<ExtendedTooltip name="СтраницаВложенияРасширеннаяПодсказка" id="31"/>
-					<ChildItems>
-						<InputField name="ВложенияТекст" id="32">
-							<DataPath>ВложенияТекст</DataPath>
-							<ReadOnly>true</ReadOnly>
-							<Title>
-								<v8:item>
-									<v8:lang>ru</v8:lang>
-									<v8:content>Вложения (текст)</v8:content>
-								</v8:item>
-							</Title>
-							<AutoMaxWidth>false</AutoMaxWidth>
-							<Height>3</Height>
-							<MultiLine>true</MultiLine>
-							<ContextMenu name="ВложенияТекстКонтекстноеМеню" id="33"/>
-							<ExtendedTooltip name="ВложенияТекстРасширеннаяПодсказка" id="34"/>
-						</InputField>
-						<Table name="ТаблицаВложений" id="35">
-							<DataPath>ТаблицаВложений</DataPath>
-							<RowFilter xsi:nil="true"/>
-							<ContextMenu name="ТаблицаВложенийКонтекстноеМеню" id="36"/>
-							<AutoCommandBar name="ТаблицаВложенийКоманднаяПанель" id="37"/>
-							<ExtendedTooltip name="ТаблицаВложенийРасширеннаяПодсказка" id="38"/>
-							<SearchStringAddition name="ТаблицаВложенийСтрокаПоиска" id="39">
-								<AdditionSource>
-									<Item>ТаблицаВложений</Item>
-									<Type>SearchStringRepresentation</Type>
-								</AdditionSource>
-								<ContextMenu name="ТаблицаВложенийСтрокаПоискаКонтекстноеМеню" id="40"/>
-								<ExtendedTooltip name="ТаблицаВложенийСтрокаПоискаРасширеннаяПодсказка" id="41"/>
-							</SearchStringAddition>
-							<ViewStatusAddition name="ТаблицаВложенийСостояниеПросмотра" id="42">
-								<AdditionSource>
-									<Item>ТаблицаВложений</Item>
-									<Type>ViewStatusRepresentation</Type>
-								</AdditionSource>
-								<ContextMenu name="ТаблицаВложенийСостояниеПросмотраКонтекстноеМеню" id="43"/>
-								<ExtendedTooltip name="ТаблицаВложенийСостояниеПросмотраРасширеннаяПодсказка" id="44"/>
-							</ViewStatusAddition>
-							<SearchControlAddition name="ТаблицаВложенийУправлениеПоиском" id="45">
-								<AdditionSource>
-									<Item>ТаблицаВложений</Item>
-									<Type>SearchControl</Type>
-								</AdditionSource>
-								<ContextMenu name="ТаблицаВложенийУправлениеПоискомКонтекстноеМеню" id="46"/>
-								<ExtendedTooltip name="ТаблицаВложенийУправлениеПоискомРасширеннаяПодсказка" id="47"/>
-							</SearchControlAddition>
-							<ChildItems>
-								<InputField name="Отправлять" id="48">
-									<DataPath>ТаблицаВложений.Отправлять</DataPath>
-									<ContextMenu name="ОтправлятьКонтекстноеМеню" id="49"/>
-									<ExtendedTooltip name="ОтправлятьРасширеннаяПодсказка" id="50"/>
-								</InputField>
-								<InputField name="Направление" id="51">
-									<DataPath>ТаблицаВложений.Направление</DataPath>
-									<ContextMenu name="НаправлениеКонтекстноеМеню" id="52"/>
-									<ExtendedTooltip name="НаправлениеРасширеннаяПодсказка" id="53"/>
-								</InputField>
-								<InputField name="Имя" id="54">
-									<DataPath>ТаблицаВложений.Имя</DataPath>
-									<ContextMenu name="ИмяКонтекстноеМеню" id="55"/>
-									<ExtendedTooltip name="ИмяРасширеннаяПодсказка" id="56"/>
-								</InputField>
-								<InputField name="MIME" id="57">
-									<DataPath>ТаблицаВложений.MIME</DataPath>
-									<ContextMenu name="MIMEКонтекстноеМеню" id="58"/>
-									<ExtendedTooltip name="MIMEРасширеннаяПодсказка" id="59"/>
-								</InputField>
-								<InputField name="РазмерБайт" id="60">
-									<DataPath>ТаблицаВложений.РазмерБайт</DataPath>
-									<ContextMenu name="РазмерБайтКонтекстноеМеню" id="61"/>
-									<ExtendedTooltip name="РазмерБайтРасширеннаяПодсказка" id="62"/>
-								</InputField>
-								<InputField name="Адрес" id="63">
-									<DataPath>ТаблицаВложений.Адрес</DataPath>
-									<ContextMenu name="АдресКонтекстноеМеню" id="64"/>
-									<ExtendedTooltip name="АдресРасширеннаяПодсказка" id="65"/>
-								</InputField>
-							</ChildItems>
-						</Table>
-					</ChildItems>
-				</Page>
+				</UsualGroup>
 			</ChildItems>
-		</Pages>
+		</UsualGroup>
 	</ChildItems>
 	<Attributes>
 		<Attribute name="АдресБэкенда" id="66">
@@ -494,6 +542,21 @@
 				</Column>
 			</Columns>
 		</Attribute>
+		<Attribute name="Агенты" id="1">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Агенты</v8:content>
+				</v8:item>
+			</Title>
+			<Type>
+				<v8:Type>xs:string</v8:Type>
+				<v8:StringQualifiers>
+					<v8:Length>0</v8:Length>
+					<v8:AllowedLength>Variable</v8:AllowedLength>
+				</v8:StringQualifiers>
+			</Type>
+		</Attribute>
 	</Attributes>
 	<Commands>
 		<Command name="Отправить" id="83">
@@ -503,7 +566,12 @@
 					<v8:content>Отправить</v8:content>
 				</v8:item>
 			</Title>
+			<Picture>
+				<xr:Ref>StdPicture.SendMessage</xr:Ref>
+				<xr:LoadTransparent>true</xr:LoadTransparent>
+			</Picture>
 			<Action>Отправить</Action>
+			<Representation>TextPicture</Representation>
 		</Command>
 		<Command name="Очистить" id="84">
 			<Title>

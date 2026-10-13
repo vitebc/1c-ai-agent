@@ -79,7 +79,8 @@
 		<ChildObjects>
 			<Language>Русский</Language>
 			<Subsystem>a1c_mcp_MCPСервер</Subsystem>
-			<Style>СтильАИ1С_ОсновнойСтиль</Style>
+			<Style>СтильАИ1С_Синий</Style>
+			<Style>СтильАИ1С_Лосось</Style>
 			<CommonPicture>a1c_Лого</CommonPicture>
 			<Role>a1c_АгентДоступ</Role>
 			<CommonModule>a1c_МаркдаунПарсер</CommonModule>
