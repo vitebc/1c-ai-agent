@@ -5,7 +5,7 @@ description: Разбирает, как в коде КА собираются д
 tools: [search-ka-rs__semantic_find, search-ka-rs__search_code, search-ka-rs__get_file_context, search-ka-rs__find_symbol, search-ka-rs__get_symbol_context, search-ka-rs__list_objects, search-ka-rs__get_object_structure, search-ka-rs__find_references, search-ka-rs__impact_analysis, search-ka-rs__get_function_context, search-ka-rs__get_module_functions, search-ka-rs__smart_find, search-ka-rs__find_function_in_object, search-ka-rs__search_files]
 skills: []
 mcp: [default, search-ka-rs]
-bases: [ai_base]
+bases: [ai_base, ca2_ai]
 users: [ca2_ai]
 model: 
 provider: 
