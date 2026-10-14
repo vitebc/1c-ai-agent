@@ -6,7 +6,7 @@ tools: [search-ka-rs__semantic_find, search-ka-rs__search_code, search-ka-rs__ge
 skills: []
 mcp: [default, search-ka-rs]
 bases: [ai_base]
-users: []
+users: [ca2_ai]
 model: 
 provider: 
 ---
