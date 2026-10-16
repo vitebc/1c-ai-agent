@@ -209,8 +209,17 @@ async def _merge_live_registry(client: OnecClient, extra: list[ToolDefinition]) 
     return ToolRegistry(known + generics + agg_tools + extra)
 
 
-def _fallback_registry() -> ToolRegistry:
-    """Реестр без обращения к 1С (локальные тулзы + агрегатор, синхронно).
+def _local_tools() -> list[ToolDefinition]:
+    """Локальные тулзы вне агрегатора и 1С: KB-поиск, свежесть расширения, паттерны."""
+    embeddings = build_embeddings(settings.embeddings_provider, settings.tei_base_url)
+    pattern_tool = make_pattern_tool(settings.patterns_dir)
+    return [make_kb_search(SessionFactory, embeddings), make_ext_freshness_tool()] + (
+        [pattern_tool] if pattern_tool else []
+    )
+
+
+async def _fallback_registry() -> ToolRegistry:
+    """Реестр без обращения к 1С (локальные тулзы + агрегатор).
 
     live-режим через прокси больше не штатный путь: прокси по умолчанию не
     поднимается (никаких инициативных обращений к 1С), чат с base_url ходит
@@ -219,19 +228,15 @@ def _fallback_registry() -> ToolRegistry:
     GET /tools?base_url=...
 
     Агрегатор MCP (AGG_MCP_URL) — не 1С, а реестр кодовых тулзов
-    (search-*, rlm, ...): опрашиваем его и здесь. Падение агрегатора чат не
-    роняет — работаем без его тулзов.
+    (search-*, rlm, ...): опрашиваем его и здесь (async: вызывается только из
+    event loop). Падение агрегатора чат не роняет — работаем без его тулзов.
     """
-    embeddings = build_embeddings(settings.embeddings_provider, settings.tei_base_url)
-    pattern_tool = make_pattern_tool(settings.patterns_dir)
-    extra = [make_kb_search(SessionFactory, embeddings), make_ext_freshness_tool()] + (
-        [pattern_tool] if pattern_tool else []
-    )
+    extra = _local_tools()
     agg_tools: list[ToolDefinition] = []
     if settings.agg_mcp_url.strip():
         try:
             agg_client = McpOnecClient(settings.agg_mcp_url, token=settings.agg_mcp_token)
-            raw = asyncio.run(fetch_agg_tools(agg_client, settings.agg_mcp_url, settings.agg_mcp_cache_ttl))
+            raw = await fetch_agg_tools(agg_client, settings.agg_mcp_url, settings.agg_mcp_cache_ttl)
             for tool in build_agg_tools(agg_client, raw):
                 agg_tools.append(tool)
         except Exception as e:  # noqa: BLE001 — агрегатор упал: чат живёт без его тулзов
@@ -248,7 +253,7 @@ def _fallback_registry() -> ToolRegistry:
 
 async def get_registry() -> ToolRegistry:
     """Зависимость FastAPI: реестр без обращения к 1С (см. _fallback_registry)."""
-    return _fallback_registry()
+    return await _fallback_registry()
 
 
 def resolve_base_root(base_name: str | None, base_url: str | None) -> str | None:
@@ -367,14 +372,14 @@ def scope_registry_for_agent(
     return registry.subset(scoped), rejected
 
 
-def _lazy_registry() -> ToolRegistry:
+async def _lazy_registry() -> ToolRegistry:
     """Реестр без обращения к 1С: локальные тулзы (+ mock-тулзы в mock-режиме).
 
     Используется как dependency FastAPI до резолва базы — никаких инициативных
     обращений к 1С. После resolve_base_root чат сам строит реестр конкретной
     базы (build_registry_for_root).
     """
-    return _fallback_registry()
+    return await _fallback_registry()
 
 
 async def get_skill_registry() -> SkillRegistry:
@@ -419,7 +424,7 @@ async def list_tools(
             raise HTTPException(status_code=401, detail=str(e)) from e
         registry = await build_registry_for_root(root, jwt_token=jwt_token)
     else:
-        registry = _fallback_registry()
+        registry = await _fallback_registry()
     return JSONResponse(
         {
             "mode": settings.onec_mode,

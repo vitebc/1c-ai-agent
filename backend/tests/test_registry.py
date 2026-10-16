@@ -25,7 +25,7 @@ def test_registry_live_no_initiative_to_1c(monkeypatch: pytest.MonkeyPatch) -> N
     """
     from app.onec.client import McpOnecClient
 
-    def boom(*a: object, **k: object) -> None:
+    async def boom(*a: object, **k: object) -> None:
         raise AssertionError("обращение к 1С без явного запроса недопустимо")
 
     monkeypatch.setattr(settings, "onec_mode", "live")

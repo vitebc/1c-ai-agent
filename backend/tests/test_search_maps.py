@@ -68,13 +68,25 @@ def test_parse_search_maps() -> None:
 
 
 def test_parse_search_maps_bad() -> None:
-    for bad in ("no-equals", "name=", "=servers", " , ".replace(" ", "")):
+    for bad in ("no-equals", "=servers"):
         try:
             search_maps.parse_search_maps(bad)
         except ValueError:
             pass
         else:
             raise AssertionError(f"ожидался ValueError для {bad!r}")
+
+
+def test_parse_search_maps_empty_server_list() -> None:
+    """'база=' — база в мапе с пустым списком: кодовых тулзов не выдаётся.
+
+    Хвост файла вида 'ai_base=' не должен ломать парсинг всего файла."""
+    raw = "doc=search-ka-update,search-ka-rs;ca2_td=search-ka-td;ai_base="
+    assert search_maps.parse_search_maps(raw) == {
+        "doc": ["search-ka-update", "search-ka-rs"],
+        "ca2_td": ["search-ka-td"],
+        "ai_base": [],
+    }
 
 
 def test_allowed_servers_no_base() -> None:
@@ -103,10 +115,10 @@ def test_allowed_servers_mapped_base(tmp_path: Path, monkeypatch) -> None:
 def test_allowed_servers_empty_list_means_no_search(tmp_path: Path, monkeypatch) -> None:
     """Запись 'база=' — база в мапе, но серверов нет: кодовые тулзы не выдаются."""
     p = tmp_path / "search-maps.conf"
-    p.write_text("ai_base=search-ka-td", encoding="utf-8")
+    p.write_text("ai_base=", encoding="utf-8")
     monkeypatch.setenv("SEARCH_MAPS_FILE", str(p))
     search_maps._state.map = None
-    assert search_maps.allowed_search_servers("ai_base") == ["search-ka-td"]
+    assert search_maps.allowed_search_servers("ai_base") == []
 
 
 def test_scope_filters_by_map(tmp_path: Path, monkeypatch) -> None:

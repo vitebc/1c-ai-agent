@@ -45,7 +45,10 @@ _TTL_S = 2.0
 def parse_search_maps(raw: str) -> dict[str, list[str]]:
     """'doc=search-ka-update,search-ka-rs;ca2_td=search-ka-td' -> {имя: [серверы]}.
 
-    Пустые записи и комментарии (#) пропускаются. Кривая запись (без =) — ValueError.
+    Пустые записи и комментарии (#) пропускаются. Кривая запись (без = или с
+    пустым именем) — ValueError (весь файл отбрасывается, hot-reload держит
+    предыдущее значение). Запись 'база=' (пустой список серверов) не ошибка:
+    база в мапе, но кодовых тулзов ей не выдаётся вовсе.
     """
     out: dict[str, list[str]] = {}
     for chunk in raw.split(";"):
@@ -56,9 +59,9 @@ def parse_search_maps(raw: str) -> dict[str, list[str]]:
             raise ValueError(f"запись без '=': {chunk!r}")
         name, _, servers = chunk.partition("=")
         name = name.strip().lower()
+        if not name:
+            raise ValueError(f"пустое имя базы: {chunk!r}")
         server_list = [s.strip() for s in servers.split(",") if s.strip()]
-        if not name or not server_list:
-            raise ValueError(f"пустое имя или список серверов: {chunk!r}")
         out[name] = server_list
     return out
 
