@@ -7,10 +7,13 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import time
+from collections.abc import Awaitable
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
+from typing import Any
 
 import httpx
 from fastapi import APIRouter, Query
@@ -53,34 +56,141 @@ def _probe_base(base_url: str, username: str, password: str | None) -> dict[str,
         }
 
 
+async def _probe_mcp(url: str, token: str | None) -> dict[str, object]:
+    """tools/list у MCP-источника (Streamable HTTP) — прокси 1С или агрегатор."""
+    t0 = time.monotonic()
+    headers = {"Authorization": f"Bearer {token}"} if token else {}
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            accept = {"Accept": "application/json, text/event-stream", "Content-Type": "application/json"}
+            init = await client.post(
+                url,
+                headers={**headers, **accept},
+                json={
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "method": "initialize",
+                    "params": {
+                        "protocolVersion": "2024-11-05",
+                        "capabilities": {},
+                        "clientInfo": {"name": "backend-dashboard", "version": "1"},
+                    },
+                },
+            )
+            if init.status_code >= 400:
+                return {
+                    "ok": False,
+                    "error": f"HTTP {init.status_code}",
+                    "elapsed_ms": int((time.monotonic() - t0) * 1000),
+                }
+            sid = init.headers.get("mcp-session-id", "")
+            listing = await client.post(
+                url,
+                headers={**headers, **accept, **({"mcp-session-id": sid} if sid else {})},
+                json={"jsonrpc": "2.0", "id": 2, "method": "tools/list"},
+            )
+        elapsed_ms = int((time.monotonic() - t0) * 1000)
+        if listing.status_code >= 400:
+            return {"ok": False, "error": f"HTTP {listing.status_code}", "elapsed_ms": elapsed_ms}
+        # Streamable HTTP отдаёт SSE-поток: берём первую строку data:.
+        raw = listing.text
+        payload: dict[str, Any] = {}
+        if raw.lstrip().startswith(("event:", "data:")):
+            for line in raw.splitlines():
+                if line.startswith("data:"):
+                    parsed = json.loads(line[5:].strip())
+                    payload = parsed if isinstance(parsed, dict) else {}
+                    break
+        else:
+            body = listing.json()
+            payload = body if isinstance(body, dict) else {}
+        result = payload.get("result") or {}
+        tools = result.get("tools") or [] if isinstance(result, dict) else []
+        return {"ok": True, "tools": len(tools), "elapsed_ms": elapsed_ms}
+    except httpx.ConnectError as e:
+        # Нет DNS-имени (сервис не в сети compose) или порт закрыт: это не
+        # поломка, а неподнятый сервис — так и и показываем в дашборде.
+        reason = str(e)
+        return {
+            "ok": False,
+            "error": (
+                "сервис не поднят (нет в сети docker-compose)"
+                if "name resolution" in reason or "no such host" in reason.lower()
+                else f"соединение не установлено: {reason[:150]}"
+            ),
+            "elapsed_ms": int((time.monotonic() - t0) * 1000),
+        }
+    except Exception as e:  # noqa: BLE001 — статус источника, не падение эндпоинта
+        return {
+            "ok": False,
+            "error": f"{type(e).__name__}: {str(e)[:200]}",
+            "elapsed_ms": int((time.monotonic() - t0) * 1000),
+        }
+
+
+def _skipped(url: str, enabled: bool) -> dict[str, object]:
+    """Источник выключен конфигом (AGG_MCP_URL пуст / прокси не поднят)."""
+    return {
+        "ok": False,
+        "enabled": enabled,
+        "error": "выключено конфигом" if not url else "прокси не поднят (профиль onec)",
+        "elapsed_ms": 0,
+    }
+
+
 @router.get("/bases")
 async def bases_status() -> dict[str, object]:
-    """Живой статус опроса инструментов по базам из мапы ONEC_BASES (hot-reload).
+    """Живой статус опроса инструментов: базы 1С + MCP-источники.
 
-    Для каждой базы из backend/bases.conf — tools/list через /hs/mcp/rpc
-    (Basic-auth сервисными ONEC_USERNAME/ONEC_PASSWORD, как в чате без JWT):
-    ok/tools/elapsed_ms или error. Опрос параллельный, таймаут 15 с на базу.
-    Для дашборда: периодический опрос (30–60 с) + показ ошибки при !ok.
+    bases — каждая база из мапы ONEC_BASES (hot-reload, backend/bases.conf):
+    tools/list через {base_url}/hs/mcp/rpc сервисными Basic-auth
+    (ONEC_USERNAME/ONEC_PASSWORD), ok/tools/elapsed_ms либо error.
+
+    sources — агрегатор кодовых тулзов (AGG_MCP_URL) и прокси 1С (ONEC_MCP_URL,
+    только в live-режиме). Прокси по умолчанию не поднят — он помечен как
+    выключенный, а не как упавший; агрегатор без AGG_MCP_URL — тоже.
+
+    Опрос параллельный, таймаут 15 с на источник. Для дашборда: периодический
+    вызов (30–60 с) + явный показ error при !ok.
     """
     base_map = get_bases_map()
     username = settings.onec_username
     password = settings.onec_password
 
-    async def probe(base_url: str) -> dict[str, object]:
-        return await asyncio.get_running_loop().run_in_executor(
-            _probe_pool, _probe_base, base_url, username, password
-        )
-
-    results = await asyncio.gather(*(probe(url) for url in base_map.values()))
-    bases = [
-        {
-            "name": name,
-            "url": url,
-            **status,
-        }
-        for name, url, status in zip(base_map.keys(), base_map.values(), results, strict=True)
+    loop = asyncio.get_running_loop()
+    probes = [
+        loop.run_in_executor(_probe_pool, _probe_base, url, username, password)
+        for url in base_map.values()
     ]
-    return {"bases": bases}
+    sources: list[tuple[str, str, str | None, bool]] = []
+    if settings.agg_mcp_url.strip():
+        sources.append(("aggregator", settings.agg_mcp_url.strip(), settings.agg_mcp_token, True))
+    elif settings.agg_mcp_url == "":
+        sources.append(("aggregator", "", None, False))
+    # Прокси по умолчанию не поднимается (профиль onec): чат ходит в базы напрямую.
+    # Показываем его выключенным, а не как падение.
+    if settings.onec_mode == "live":
+        # В live чат ходит в базы напрямую; прокси — запасной путь (профиль onec),
+        # поэтому его отсутствие — штатное состояние, а не авария.
+        sources.append(("mcp_proxy", settings.onec_mcp_url.strip(), None, bool(settings.onec_mcp_url.strip())))
+    source_probes: list[Awaitable[dict[str, object]]] = [
+        _probe_mcp(url, token) if enabled else asyncio.sleep(0, result=_skipped(url, enabled))
+        for _, url, token, enabled in sources
+    ]
+
+    base_results, source_results = await asyncio.gather(
+        asyncio.gather(*probes), asyncio.gather(*source_probes)
+    )
+
+    bases = [
+        {"name": name, "url": url, **status}
+        for name, url, status in zip(base_map.keys(), base_map.values(), base_results, strict=True)
+    ]
+    probed = [
+        {"name": name, "url": url, **status}
+        for (name, url, _, _), status in zip(sources, source_results, strict=True)
+    ]
+    return {"bases": bases, "sources": probed, "mode": settings.onec_mode}
 
 
 @router.get("/requests")
