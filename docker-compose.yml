@@ -16,6 +16,8 @@ services:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-agent}:${POSTGRES_PASSWORD:-agent}@postgres:5432/${POSTGRES_DB:-agentdb}
       # Внутри compose-сети прокси доступен как mcp-proxy:8000, а не localhost (localhost = сам backend).
       ONEC_MCP_URL: ${ONEC_MCP_URL_COMPOSE:-http://mcp-proxy:8000}
+      # Публикация 1С для дашборда GET /stats/onec (тот же MCP_ONEC_URL, что у mcp-proxy).
+      MCP_ONEC_URL: ${MCP_ONEC_URL:-}
       # Полный лог петли (каждый раунд: assistant-контент + tool args/results) — файл.
       LOOP_LOG_FILE: /app/logs/agent-loop.log
     ports:

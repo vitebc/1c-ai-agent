@@ -80,6 +80,11 @@ class Settings(BaseSettings):
     # TTL кэша tools/list агрегатора, сек (ответ тяжёлый: 100+ тулзов).
     agg_mcp_cache_ttl: int = 300
 
+    # Адрес публикации 1С для MCP-прокси (тот же MCP_ONEC_URL, что у mcp-proxy
+    # в docker-compose). Только для дашборда GET /stats/onec — бэкенд опрашивает
+    # его /hs/mcp/rpc и показывает доступность и число инструментов.
+    mcp_onec_url: str = ""
+
     # Рантайм-скилы чат-агента (backend/skills/*/SKILL.md). Перечитываются на каждый запрос.
     skills_dir: str = str(Path(__file__).resolve().parent.parent.parent / "skills")
     # Порог авто-матчинга скила по description (косинус). Ниже — скил не применяется,
