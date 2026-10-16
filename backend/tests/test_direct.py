@@ -149,6 +149,22 @@ def test_parse_bases_map_ok() -> None:
     }
 
 
+def test_parse_bases_map_skips_comments() -> None:
+    """Комментарии (#) и пустые строки в bases.conf пропускаются, а не ломают мапу."""
+    from app.onec.direct import parse_bases_map
+
+    raw = (
+        "# Мапа баз ONEC_BASES — hot-reload.\n"
+        "# Формат: \"имя=url;...\". Имя — НРег.\n"
+        "\n"
+        "doc3_test=http://192.168.0.69:81/doc3_test;ca2_update_zhvv=http://192.168.0.178/ca2_update\n"
+    )
+    assert parse_bases_map(raw) == {
+        "doc3_test": "http://192.168.0.69:81/doc3_test",
+        "ca2_update_zhvv": "http://192.168.0.178/ca2_update",
+    }
+
+
 def test_parse_bases_map_rejects() -> None:
     import pytest
 

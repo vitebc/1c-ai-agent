@@ -30,22 +30,28 @@ def parse_bases_map(raw: str) -> dict[str, str]:
 
     Только исключения (нестандартные порты/хосты). Пусто — {}. Кривая запись
     или адрес — ValueError (валидатор конфига роняет старт с понятным текстом).
+    Комментарии (# в начале строки) и пустые строки пропускаются: bases.conf
+    — правимый руками файл, заголовочные комментарии обязательны.
     """
     out: dict[str, str] = {}
-    for chunk in raw.split(";"):
-        chunk = chunk.strip()
-        if not chunk:
+    for line in raw.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
             continue
-        name, sep, url = chunk.partition("=")
-        name = name.strip().lower()
-        if not sep or not name:
-            raise ValueError(f"ONEC_BASES: запись без '=' или без имени: {chunk!r}")
-        if name in out:
-            raise ValueError(f"ONEC_BASES: дубль имени базы: {name!r}")
-        try:
-            out[name] = validate_base_url(url)
-        except ValueError as e:
-            raise ValueError(f"ONEC_BASES: база {name!r}: {e}") from e
+        for chunk in line.split(";"):
+            chunk = chunk.strip()
+            if not chunk:
+                continue
+            name, sep, url = chunk.partition("=")
+            name = name.strip().lower()
+            if not sep or not name:
+                raise ValueError(f"ONEC_BASES: запись без '=' или без имени: {chunk!r}")
+            if name in out:
+                raise ValueError(f"ONEC_BASES: дубль имени базы: {name!r}")
+            try:
+                out[name] = validate_base_url(url)
+            except ValueError as e:
+                raise ValueError(f"ONEC_BASES: база {name!r}: {e}") from e
     return out
 
 

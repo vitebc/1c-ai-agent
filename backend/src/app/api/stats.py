@@ -6,16 +6,81 @@
 
 from __future__ import annotations
 
+import asyncio
+import logging
+import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 
+import httpx
 from fastapi import APIRouter, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.db.models import ChatRequestLog
 from app.db.session import SessionFactory
+from app.onec.bases import get_bases_map
+
+log = logging.getLogger("agent1c.stats")
 
 router = APIRouter(prefix="/stats", tags=["stats"])
+
+#: Общий пул для синхронных httpx-опросов баз (async-контекст эндпоинтов).
+_probe_pool = ThreadPoolExecutor(max_workers=8)
+
+
+def _probe_base(base_url: str, username: str, password: str | None) -> dict[str, object]:
+    """Опрос {base_url}/hs/mcp/rpc tools/list с Basic-auth (сервисные креды)."""
+    t0 = time.monotonic()
+    try:
+        with httpx.Client(timeout=15.0) as client:
+            r = client.post(
+                f"{base_url}/hs/mcp/rpc",
+                auth=(username, password or ""),
+                json={"jsonrpc": "2.0", "id": 1, "method": "tools/list"},
+            )
+        elapsed_ms = int((time.monotonic() - t0) * 1000)
+        if r.status_code != 200:
+            return {"ok": False, "error": f"HTTP {r.status_code}", "elapsed_ms": elapsed_ms}
+        tools = (r.json().get("result") or {}).get("tools") or []
+        return {"ok": True, "tools": len(tools), "elapsed_ms": elapsed_ms}
+    except Exception as e:  # noqa: BLE001 — сетевая ошибка = статус базы, не падение эндпоинта
+        return {
+            "ok": False,
+            "error": f"{type(e).__name__}: {str(e)[:200]}",
+            "elapsed_ms": int((time.monotonic() - t0) * 1000),
+        }
+
+
+@router.get("/bases")
+async def bases_status() -> dict[str, object]:
+    """Живой статус опроса инструментов по базам из мапы ONEC_BASES (hot-reload).
+
+    Для каждой базы из backend/bases.conf — tools/list через /hs/mcp/rpc
+    (Basic-auth сервисными ONEC_USERNAME/ONEC_PASSWORD, как в чате без JWT):
+    ok/tools/elapsed_ms или error. Опрос параллельный, таймаут 15 с на базу.
+    Для дашборда: периодический опрос (30–60 с) + показ ошибки при !ok.
+    """
+    base_map = get_bases_map()
+    username = settings.onec_username
+    password = settings.onec_password
+
+    async def probe(base_url: str) -> dict[str, object]:
+        return await asyncio.get_running_loop().run_in_executor(
+            _probe_pool, _probe_base, base_url, username, password
+        )
+
+    results = await asyncio.gather(*(probe(url) for url in base_map.values()))
+    bases = [
+        {
+            "name": name,
+            "url": url,
+            **status,
+        }
+        for name, url, status in zip(base_map.keys(), base_map.values(), results, strict=True)
+    ]
+    return {"bases": bases}
 
 
 @router.get("/requests")
