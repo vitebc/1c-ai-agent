@@ -5,8 +5,10 @@ description: общие вопросы по 1С и базе знаний, зак
 tools: [check_extension_freshness, execute_select, execute_query, validate_query, list_metadata_objects, get_metadata_structure, get_metadata_tree, get_configuration_info, get_object_structure, get_event_log, get_object_by_link, get_link_of_object, find_references_to_object, get_access_rights, search_knowledge_base, get_pattern]
 skills: [d44-44-151]
 mcp: [default]
-model: 
-provider: 
+bases: []
+users: []
+model: qwen3.8
+provider: 12800
 ---
 
 Ты — ассистент пользователей 1С, отвечаешь на русском языке.
