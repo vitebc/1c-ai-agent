@@ -159,6 +159,158 @@ def test_circuit_breaker_disabled() -> None:
     assert res.tool_errors == 5
 
 
+def _empty_search_reg() -> ToolRegistry:
+    """Тулза, которая честно отвечает «найдено 0» — ошибкой это не считается."""
+    from app.agent.tools import ToolDefinition
+    from app.onec.schemas import StockArgs
+
+    async def empty(args: StockArgs, ctx: object) -> str:
+        return "Найдено 0 файлов по «вс11»"
+
+    return ToolRegistry(
+        [ToolDefinition(name="search_files", description="поиск файлов", args_model=StockArgs, handler=empty)]
+    )
+
+
+def _run_repeat(llm: FakeLLM, max_repeat_calls: int, max_rounds: int = 15) -> AgentResult:
+    return asyncio.run(
+        run_agent(
+            llm=llm,
+            registry=_empty_search_reg(),
+            user_message="тест",
+            max_rounds=max_rounds,
+            max_repeat_calls=max_repeat_calls,
+        )
+    )
+
+
+def _same_args_script(n: int, args: str) -> list[AssistantMessage]:
+    return [
+        AssistantMessage(content=None, tool_calls=[ToolCall(id=f"c{i}", name="search_files", arguments=args)])
+        for i in range(n)
+    ]
+
+
+def test_repeat_breaker_stops_identical_empty_calls() -> None:
+    """Живой случай: search_files × 23 одинаковыми аргументами съедал все раунды.
+
+    Ответ «найдено 0» ошибкой не считается, поэтому предохранитель на ошибки
+    молчит — нужен отдельный предохранитель на повторы."""
+    llm = FakeLLM(_same_args_script(10, '{"sku": "ВС11"}'))
+    res = _run_repeat(llm, max_repeat_calls=3)
+    assert res.tool_calls == ["search_files"] * 3
+    assert res.tool_errors == 0  # это не ошибки
+    assert "Останавливаюсь" in res.answer
+    assert "search_files" in res.answer
+
+
+def test_repeat_breaker_resets_when_result_has_content() -> None:
+    """Разные аргументы И непустой результат — это прогресс, предохранитель молчит.
+
+    Переформулировка запроса, которая наконец что-то нашла, обязана доезжать."""
+    from app.agent.tools import ToolDefinition
+    from app.onec.schemas import StockArgs
+
+    async def found(args: StockArgs, ctx: object) -> str:
+        return "Найдено 12 файлов по запросу"
+
+    reg = ToolRegistry(
+        [ToolDefinition(name="search_files", description="поиск файлов", args_model=StockArgs, handler=found)]
+    )
+    script = (
+        _same_args_script(2, '{"sku": "ВС11"}')
+        + _same_args_script(2, '{"sku": "СредняяЦена"}')
+        + [AssistantMessage(content="Финал.")]
+    )
+    res = asyncio.run(
+        run_agent(
+            llm=FakeLLM(script),
+            registry=reg,
+            user_message="тест",
+            max_rounds=10,
+            max_repeat_calls=3,
+        )
+    )
+    assert res.answer == "Финал."
+
+
+def test_empty_breaker_stops_varied_args_empty_results() -> None:
+    """Живой случай: search_files звали 14 раз, аргументы слегка менялись
+    (head_limit 30/50/100, extension, glob), все ответы — «найдено 0»."""
+    script = [
+        AssistantMessage(
+            content=None,
+            tool_calls=[ToolCall(id=f"c{i}", name="search_files", arguments=args)],
+        )
+        for i, args in enumerate(
+            [
+                '{"sku": "ВС11", "head_limit": 30}',
+                '{"sku": "ВС11", "head_limit": 50}',
+                '{"sku": "ВС11", "head_limit": 100}',
+                '{"sku": "СредняяЦена", "head_limit": 50}',
+            ]
+        )
+    ] + [AssistantMessage(content="Финал, которого не будет.")]
+    res = _run_repeat(FakeLLM(script), max_repeat_calls=3, max_rounds=10)
+    assert "Останавливаюсь" in res.answer
+    assert len(res.tool_calls) == 3  # остановились на третьем пустом ответе
+    assert "search_files" in res.answer
+
+
+def test_empty_breaker_resets_on_different_tool() -> None:
+    """Смена инструзма — не застревание: счётчик пустых ответов сбрасывается."""
+    from app.agent.tools import ToolDefinition
+    from app.onec.schemas import StockArgs
+
+    async def empty(args: StockArgs, ctx: object) -> str:
+        return "Найдено 0 файлов"
+
+    async def found(args: StockArgs, ctx: object) -> str:
+        return "Найдено 7 файлов"
+
+    reg = ToolRegistry(
+        [
+            ToolDefinition(name="search_files", description="ф", args_model=StockArgs, handler=empty),
+            ToolDefinition(name="search_code", description="к", args_model=StockArgs, handler=found),
+        ]
+    )
+    script = _same_args_script(2, '{"sku": "ВС11"}') + [
+        AssistantMessage(
+            content=None,
+            tool_calls=[ToolCall(id="cx", name="search_code", arguments='{"sku": "ВС11"}')],
+        ),
+        AssistantMessage(content="Финал."),
+    ]
+    res = asyncio.run(
+        run_agent(
+            llm=FakeLLM(script),
+            registry=reg,
+            user_message="тест",
+            max_rounds=10,
+            max_repeat_calls=3,
+        )
+    )
+    assert res.answer == "Финал."
+
+
+def test_repeat_breaker_ignores_whitespace_differences() -> None:
+    """Пробелы в JSON не должны обходить предохранитель."""
+    script = [
+        AssistantMessage(content=None, tool_calls=[ToolCall(id=f"c{i}", name="search_files", arguments=args)])
+        for i, args in enumerate(['{"sku": "ВС11"}', '{"sku":  "ВС11"}', '{ "sku": "ВС11" }'])
+    ] + [AssistantMessage(content="Финал.")]
+    llm = FakeLLM(script)
+    res = _run_repeat(llm, max_repeat_calls=3, max_rounds=10)
+    assert "Останавливаюсь" in res.answer
+
+
+def test_repeat_breaker_disabled() -> None:
+    llm = FakeLLM(_same_args_script(5, '{"sku": "ВС11"}') + [AssistantMessage(content="Финал.")])
+    res = _run_repeat(llm, max_repeat_calls=0, max_rounds=10)
+    assert res.answer == "Финал."
+    assert len(res.tool_calls) == 5
+
+
 def test_quoted_error_counts_as_error() -> None:
     # 1С иногда возвращает ошибку уже JSON-закодированной: '"Ошибка выполнения...'.
     from app.agent.tools import ToolDefinition

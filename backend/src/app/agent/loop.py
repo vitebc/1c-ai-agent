@@ -12,6 +12,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import time
 from dataclasses import dataclass, field
@@ -121,7 +122,16 @@ async def run_agent(
     agent_name: str = "",
     base_url: str = "",
     max_consecutive_errors: int = 3,
+    max_repeat_calls: int = 3,
 ) -> AgentResult:
+    """Агентская петля: LLM -> вызовы инструментов -> ... -> финальный ответ.
+
+    max_consecutive_errors — стоп после N ошибок инструментов подряд (0 = выкл).
+    max_repeat_calls — стоп после N одинаковых вызовов одного инструмента с одними
+    и теми же аргументами (0 = выкл). Ловит бесполезный перебор вариантов запроса,
+    когда инструмент честно отвечает «ничего не найдено» и ошибкой это не считается
+    (живой случай: search_files × 23 одинаковыми аргументами до лимита раундов).
+    """
     system = base_system + ("\n\n" + extra_system.strip() if extra_system.strip() else "")
     messages: list[dict[str, Any]] = [
         {"role": "system", "content": system},
@@ -140,6 +150,13 @@ async def run_agent(
     errors = 0
     consec_errors = 0
     last_error = ""
+    # Счётчик повторов: (инструмент, аргументы) -> сколько раз подряд звали одинаково.
+    # Ключ нормализован пробелами, чтобы "ВС11 " и " ВС11" не считались разными.
+    repeat_calls: dict[tuple[str, str], int] = {}
+    last_repeat_key: tuple[str, str] | None = None
+    # Серия пустых ответов одного инструмента (аргументы могут отличаться).
+    consec_empty = 0
+    last_empty_tool = ""
     prompt_tokens = 0
     completion_tokens = 0
     started = time.monotonic()
@@ -187,6 +204,29 @@ async def run_agent(
                 last_error = feedback
             else:
                 consec_errors = 0
+            # Предохранитель повторов: тот же инструмент с теми же аргументами
+            # N раз подряд — модель зациклилась (часто «ничего не найдено»).
+            if consec_errors == 0:
+                repeat_key = (call.name, _norm_args(call.arguments))
+                if repeat_key == last_repeat_key:
+                    repeat_calls[repeat_key] = repeat_calls.get(repeat_key, 1) + 1
+                else:
+                    repeat_calls[repeat_key] = 1
+                last_repeat_key = repeat_key
+            else:
+                last_repeat_key = None
+            # Предохранитель пустых ответов: тот же инструмент N раз подряд вернул
+            # «ничего не найдено», даже если аргументы слегка менялись (пробелы,
+            # head_limit, лишние фильтры) — перебор вариантов запроса вслепую.
+            if consec_errors == 0:
+                if call.name == last_empty_tool and _is_empty_result(feedback):
+                    consec_empty += 1
+                else:
+                    consec_empty = 1 if _is_empty_result(feedback) else 0
+                last_empty_tool = call.name
+            else:
+                consec_empty = 0
+                last_empty_tool = call.name
             log.info(
                 "user=%s round=%d tool=%s args=%s -> %s",
                 user_id,
@@ -196,6 +236,60 @@ async def run_agent(
                 feedback,
             )
             messages.append({"role": "tool", "tool_call_id": call.id, "content": feedback})
+            # Проверяем повтор только пока остались раунды: если раунды всё равно
+            # кончились, честнее сказать про лимит раундов, а не про повтор.
+            rounds_left = round_no < max_rounds
+            # Сначала повтор одного и того же вызова, затем — серия пустых ответов.
+            # Оба срабатывают, только пока остались раунды: если раунды всё равно
+            # кончились, честнее сказать про лимит раундов.
+            if rounds_left and consec_errors == 0 and 0 < max_repeat_calls <= consec_empty:
+                log.warning(
+                    "user=%s base=%s agent=%s skill=%s пустых ответов: %s вернул «не найдено» "
+                    "%d раз подряд, стоп",
+                    user_id, base, agent, skill, call.name, consec_empty,
+                )
+                return AgentResult(
+                    answer=(
+                        f"Останавливаюсь: инструмент {call.name} {consec_empty} раз подряд вернул "
+                        f"«ничего не найдено» (последний ответ: {_preview(feedback, 300)}). "
+                        "Похоже, выбранный инструмент не подходит для этой задачи — например, "
+                        "поиск по имени файла не видит объекты, описанные только в XML. "
+                        "Скажите пользователю, что автоматический поиск не дал результата, "
+                        "и предложите уточнить объект или поискать по другому признаку."
+                    ),
+                    rounds=len(called),
+                    tool_calls=called,
+                    tool_errors=errors,
+                    prompt_tokens=prompt_tokens,
+                    completion_tokens=completion_tokens,
+                )
+            if rounds_left and consec_errors == 0 and 0 < max_repeat_calls <= repeat_calls[repeat_key]:
+                log.warning(
+                    "user=%s base=%s agent=%s skill=%s повтор: %s %s вызван %d раз подряд "
+                    "с одними аргументами, стоп",
+                    user_id,
+                    base,
+                    agent,
+                    skill,
+                    call.name,
+                    _preview(repeat_key[1], 200),
+                    repeat_calls[repeat_key],
+                )
+                return AgentResult(
+                    answer=(
+                        f"Останавливаюсь: инструмент {call.name} уже {repeat_calls[repeat_key]} раз "
+                        f"вернул один и тот же результат на одни и те же аргументы "
+                        f"({_preview(repeat_key[1], 200)}), продолжать перебор бессмысленно. "
+                        f"Последний ответ инструмента: {_preview(feedback, 300)}. "
+                        "Скажите пользователю, что по этим условиям инструмент не даёт результата, "
+                        "и предложите другой вопрос или другую формулировку."
+                    ),
+                    rounds=len(called),
+                    tool_calls=called,
+                    tool_errors=errors,
+                    prompt_tokens=prompt_tokens,
+                    completion_tokens=completion_tokens,
+                )
             if 0 < max_consecutive_errors <= consec_errors:
                 log.warning(
                     "user=%s base=%s agent=%s skill=%s circuit breaker: %d ошибок подряд, стоп: %s",
@@ -238,6 +332,41 @@ async def run_agent(
         prompt_tokens=prompt_tokens,
         completion_tokens=completion_tokens,
     )
+
+
+#: Ответы инструментов, которые означают «ничего не нашлось» (не ошибка!).
+#: Список короткий и явный: эвристика по тексту, а не универсальный разбор JSON.
+_EMPTY_MARKERS = (
+    "найдено 0",
+    "0 найдено",
+    "не найдено",
+    "ничего не найдено",
+    "нет результатов",
+    "пустой результат",
+    "0 файлов",
+    "0 результатов",
+    "0 записей",
+)
+
+
+def _is_empty_result(feedback: str) -> bool:
+    """Похоже ли, что инструмент ответил «ничего не нашлось» (а не сломался)."""
+    head = feedback[:400].lower()
+    return any(m in head for m in _EMPTY_MARKERS)
+
+
+def _norm_args(arguments: Any) -> str:
+    """Канонический вид аргументов для сравнения повторов.
+
+    Модель может отличаться только пробелами/порядком ключей (`{"a": 1}` против
+    `{"a":1}`), и это тот же самый вызов. Поэтому сначала пробуем JSON с
+    отсортированными ключами, а при неудаче — просто схлопываем пробелы.
+    """
+    raw = str(arguments or "")
+    try:
+        return json.dumps(json.loads(raw), sort_keys=True, ensure_ascii=False)
+    except ValueError:
+        return " ".join(raw.split())
 
 
 async def _execute_call(registry: ToolRegistry, ctx: ToolContext, name: str, arguments: str) -> str:
