@@ -5,7 +5,7 @@ description: Разбирает, как в коде КА собираются д
 tools: [search-ka-rs__semantic_find, search-ka-rs__search_code, search-ka-rs__get_file_context, search-ka-rs__find_symbol, search-ka-rs__get_symbol_context, search-ka-rs__list_objects, search-ka-rs__get_object_structure, search-ka-rs__find_references, search-ka-rs__impact_analysis, search-ka-rs__get_function_context, search-ka-rs__get_module_functions, search-ka-rs__smart_find, search-ka-rs__find_function_in_object, search-ka-rs__search_files, search-obrabotki__semantic_find, search-obrabotki__search_code, search-obrabotki__get_file_context, search-obrabotki__find_symbol, search-obrabotki__get_symbol_context, search-obrabotki__list_objects, search-obrabotki__get_object_structure, search-obrabotki__find_references, search-obrabotki__impact_analysis, search-obrabotki__get_function_context, search-obrabotki__get_module_functions, search-obrabotki__smart_find, search-obrabotki__find_function_in_object, search-obrabotki__search_files, search-obrabotki__stats]
 skills: []
 mcp: [search-obrabotki]
-bases: [ai_base, ca2_ai]
+bases: [ca2_ai, doc3_test]
 users: []
 model: qwen3.8
 provider: 12800
