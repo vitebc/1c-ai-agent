@@ -48,7 +48,7 @@ from app.onec import bases as onec_bases
 from app.patterns import make_pattern_tool
 from app.rag import build_embeddings, make_kb_search
 from app.skills import Skill, SkillRegistry
-from app.tools import MOCK_ONEC_TOOLS
+from app.tools import MOCK_ONEC_TOOLS, make_list_registry_tool
 
 router = APIRouter()
 
@@ -210,12 +210,14 @@ async def _merge_live_registry(client: OnecClient, extra: list[ToolDefinition]) 
 
 
 def _local_tools() -> list[ToolDefinition]:
-    """Локальные тулзы вне агрегатора и 1С: KB-поиск, свежесть расширения, паттерны."""
+    """Локальные тулзы вне агрегатора и 1С: KB-поиск, свежесть расширения, паттерны, реестр."""
     embeddings = build_embeddings(settings.embeddings_provider, settings.tei_base_url)
     pattern_tool = make_pattern_tool(settings.patterns_dir)
-    return [make_kb_search(SessionFactory, embeddings), make_ext_freshness_tool()] + (
-        [pattern_tool] if pattern_tool else []
-    )
+    return [
+        make_kb_search(SessionFactory, embeddings),
+        make_ext_freshness_tool(),
+        make_list_registry_tool(),
+    ] + ([pattern_tool] if pattern_tool else [])
 
 
 async def _fallback_registry() -> ToolRegistry:

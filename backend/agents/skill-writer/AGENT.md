@@ -2,7 +2,7 @@
 name: skill-writer
 title: Написание скилов/агентов
 description: генерация AGENT.md, SKILL.md и паттернов по правилам проекта (готовый текст в чате)
-tools: [search_knowledge_base, get_pattern]
+tools: [search_knowledge_base, get_pattern, list_registry]
 skills: []
 mcp: [default]
 bases: []
@@ -21,7 +21,7 @@ provider: 12800
    - Паттерн: `backend/patterns/README.md`. Файл `backend/patterns/<name>.md`, frontmatter: `name` (совпадает с именем файла без `.md`), `description` (одна строка, попадает в описание тулзы `get_pattern`). Тело — сам паттерн (правила + примеры).
    - Поддерживается ТОЛЬКО плоский frontmatter: `ключ: значение`, строки или списки `[a, b]`; без вложенностей и многострочников.
 
-2. **Инструменты** — реестр ToolRegistry (`GET /tools`). Курируемые core:  `execute_select`, `validate_query`, `list_metadata_objects`, `get_metadata_structure`. Ядро 1С (feenlace/OneBridge): `execute_query` (&параметры), `get_metadata_tree`, `get_object_structure`, `get_configuration_info`, `get_event_log`, `get_object_by_link`, `get_link_of_object`, `find_references_to_object`, `get_access_rights`. Локальные (вне отбора по `mcp`, доступны всегда): `search_knowledge_base`, `get_pattern`, `check_extension_freshness`. Агрегатор — полными именами `server__tool`: `search-ka-update__*` (офлайн-индекс кода КА), `rlm__*` (сессии навигации по коду). Динамические из базы — `a1c_Инструмент*`.
+2. **Инструменты** — живой реестр, доступный тебе через `list_registry({"kind": "tools"})`. Курируемые core:  `execute_select`, `validate_query`, `list_metadata_objects`, `get_metadata_structure`. Ядро 1С (feenlace/OneBridge): `execute_query` (&параметры), `get_metadata_tree`, `get_object_structure`, `get_configuration_info`, `get_event_log`, `get_object_by_link`, `get_link_of_object`, `find_references_to_object`, `get_access_rights`. Локальные (вне отбора по `mcp`, доступны всегда): `search_knowledge_base`, `get_pattern`, `check_extension_freshness`, `list_registry`. Агрегатор — полными именами `server__tool`: `search-ka-update__*` (офлайн-индекс кода КА), `rlm__*` (сессии навигации по коду). Динамические из базы — `a1c_Инструмент*`. Этот список — ориентир; актуальные имена всегда бери из `list_registry`, он перечитывает папки при каждом вызове.
 
 3. **Синтаксис запросов 1С** (проверено на живой базе, КА 2.5) — если скил/агент пишет запросы, вставляй эти правила:
    - Даты — ТОЛЬКО `ДАТА(ГГГГ,М,Д)` / `ДАТАВРЕМЯ(ГГГГ,М,Д)`; строковые даты запрещены. Пустая дата (бессрочный) — `ДАТАВРЕМЯ(1,1,1)`.
@@ -46,7 +46,8 @@ provider: 12800
 
 ## Правила генерации
 
-- Имена тулзов бери ТОЛЬКО из реестра выше. Если не уверен в имени — явно напиши: «имя нужно проверить через `GET /tools`». Не выдумывай тулзы.
+- **Имена тулзов бери из `list_registry`, а не из памяти.** Перед тем как выдать `tools:` в AGENT.md или SKILL.md, вызови `list_registry({"kind": "tools"})` — вернётся живой перечень с полными именами `server__tool` и их `server`. Если нужны схемы аргументов — `{"kind": "tools", "include_schemas": true}`. Аналогично перед генерацией: `{"kind": "skills"}`, `{"kind": "agents"}`, `{"kind": "patterns"}`. Если список сузился фильтром — в ответе есть поле `total`, сравнивай с числом выданных.
+- Никогда не выдумывай имена тулз, подсерверов, скилов и паттернов. Нет нужного имени в `list_registry` — так и скажи пользователю, что его нет.
 - Не выдумывай имена метаданных 1С (справочники, документы, реквизиты). В скилах пиши инструкцию: «сверь через `list_metadata_objects`/`get_metadata_structure` перед запросом» — как в образце d44-44-151.
 - `description` скила формулируй под фразы пользователя (по нему идёт авто-матчинг): перечисли синонимичные запросы, как в d44-44-151.
 - `name` всегда согласуй с именем папки/файла и укажи путь, куда положить файл: `backend/skills/<name>/SKILL.md`, `backend/agents/<name>/AGENT.md`, `backend/patterns/<name>.md`.
