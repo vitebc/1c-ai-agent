@@ -315,12 +315,11 @@ async def build_registry_for_root(root: str, client: OnecClient | None = None, j
     """Реестр под уже проверенный корень публикации (см. resolve_base_root).
 
     jwt_token — Bearer-токен для per-user RLS; пусто → сервисный Basic auth.
+    Локальные тулзы берём из _local_tools() — единственного места, где они
+    перечисляются (раньше тут была вторая копия списка, и добавленная в
+    _local_tools() тулза до чата не доезжала: в логе «нет в реестре»).
     """
-    embeddings = build_embeddings(settings.embeddings_provider, settings.tei_base_url)
-    pattern_tool = make_pattern_tool(settings.patterns_dir)
-    extra = [make_kb_search(SessionFactory, embeddings), make_ext_freshness_tool()] + (
-        [pattern_tool] if pattern_tool else []
-    )
+    extra = _local_tools()
     if client is not None:
         direct = client
     elif jwt_token:

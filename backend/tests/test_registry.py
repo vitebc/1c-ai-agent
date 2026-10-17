@@ -36,6 +36,25 @@ def test_registry_live_no_initiative_to_1c(monkeypatch: pytest.MonkeyPatch) -> N
     assert "execute_select" not in reg.names  # тулзы базы — только с base_url
 
 
+def test_registry_base_url_has_all_local_tools(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Чат с base_url (штатный путь из формы 1С) отдаёт ВСЕ локальные тулзы.
+
+    Регресс: build_registry_for_root собирал локальные тулзы отдельным списком,
+    копией _local_tools(). Добавленная туда list_registry до чата не доезжала —
+    в логе «list_registry (нет в реестре)», а GET /tools её показывал. Тест бьёт
+    именно по пути чата, а не по /tools.
+    """
+    from app.api.chat import _local_tools, build_registry_for_base_url
+    from app.onec.client import FakeOnecClient
+
+    reg = asyncio.run(build_registry_for_base_url("http://h/base", client=FakeOnecClient([])))
+    local_names = {t.name for t in _local_tools()}
+    assert local_names, "_local_tools() не должен быть пустым"
+    missing = local_names - set(reg.names)
+    assert not missing, f"локальные тулзы потерялись в пути чата: {sorted(missing)}"
+    assert "list_registry" in reg.names
+
+
 def test_registry_base_url_merges_dynamic_tools(monkeypatch: pytest.MonkeyPatch) -> None:
     """Динамические тулзы базы (a1c_Инструмент*) попадают в реестр по base_url —
     только при явном запросе с адресом публикации, без прокси."""
