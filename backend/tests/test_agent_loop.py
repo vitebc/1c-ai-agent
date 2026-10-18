@@ -191,17 +191,51 @@ def _same_args_script(n: int, args: str) -> list[AssistantMessage]:
     ]
 
 
-def test_repeat_breaker_stops_identical_empty_calls() -> None:
+def test_repeat_breaker_gives_model_final_answer() -> None:
     """Живой случай: search_files × 23 одинаковыми аргументами съедал все раунды.
 
     Ответ «найдено 0» ошибкой не считается, поэтому предохранитель на ошибки
-    молчит — нужен отдельный предохранитель на повторы."""
-    llm = FakeLLM(_same_args_script(10, '{"sku": "ВС11"}'))
+    молчит — нужен отдельный предохранитель на повторы. Сработав, он даёт модели
+    ОДИН шанс ответить из того, что уже найдено, вместо тишины."""
+    # 3 вызова (порог) + ответ на финальный запрос к LLM без инструментов.
+    llm = FakeLLM(
+        _same_args_script(3, '{"sku": "ВС11"}')
+        + [AssistantMessage(content="Я нашёл объект ВС11, но формулу не посмотрел.")]
+    )
     res = _run_repeat(llm, max_repeat_calls=3)
     assert res.tool_calls == ["search_files"] * 3
     assert res.tool_errors == 0  # это не ошибки
-    assert "Останавливаюсь" in res.answer
-    assert "search_files" in res.answer
+    assert res.answer == "Я нашёл объект ВС11, но формулу не посмотрел."
+
+
+def test_repeat_breaker_final_call_has_no_tools() -> None:
+    """Финальный ответ идёт с пустым списком схем — звать тулзы больше нельзя."""
+    llm = FakeLLM(
+        _same_args_script(3, '{"sku": "ВС11"}') + [AssistantMessage(content="Итог.")]
+    )
+    _run_repeat(llm, max_repeat_calls=3)
+    assert llm.seen_messages, "LLM не вызывался"
+    last_seen, last_tools = llm.last_call
+    assert last_tools == [], "в финальном вызове инструменты должны быть отключены"
+    assert any(
+        "Ответь пользователю СЕЙЧАС" in str(m.get("content", "")) for m in last_seen
+    ), "в финальный промпт должно попасть требование ответить сейчас"
+
+
+def test_repeat_breaker_fallback_when_model_silent() -> None:
+    """Молчащая модель — отдаём заготовку, а не пустой ответ."""
+    llm = FakeLLM(_same_args_script(3, '{"sku": "ВС11"}') + [AssistantMessage(content="   ")])
+    res = _run_repeat(llm, max_repeat_calls=3)
+    assert res.answer.strip()
+    assert "не дал результата" in res.answer or "зациклился" in res.answer
+
+
+def test_repeat_breaker_fallback_when_llm_fails() -> None:
+    """Упавший LLM на финальном вызове не роняет петлю — отдаём заготовку."""
+    llm = FakeLLM(_same_args_script(10, '{"sku": "ВС11"}'))
+    llm.raise_on_final = True
+    res = _run_repeat(llm, max_repeat_calls=3)
+    assert res.answer.strip()
 
 
 def test_repeat_breaker_resets_when_result_has_content() -> None:
@@ -247,14 +281,13 @@ def test_empty_breaker_stops_varied_args_empty_results() -> None:
                 '{"sku": "ВС11", "head_limit": 30}',
                 '{"sku": "ВС11", "head_limit": 50}',
                 '{"sku": "ВС11", "head_limit": 100}',
-                '{"sku": "СредняяЦена", "head_limit": 50}',
             ]
         )
-    ] + [AssistantMessage(content="Финал, которого не будет.")]
+    ] + [AssistantMessage(content="Ответ по найденному.")]
     res = _run_repeat(FakeLLM(script), max_repeat_calls=3, max_rounds=10)
-    assert "Останавливаюсь" in res.answer
     assert len(res.tool_calls) == 3  # остановились на третьем пустом ответе
-    assert "search_files" in res.answer
+    # Дальше модель получила шанс ответить из того, что уже нашла.
+    assert res.answer == "Ответ по найденному."
 
 
 def test_empty_breaker_resets_on_different_tool() -> None:
@@ -298,10 +331,10 @@ def test_repeat_breaker_ignores_whitespace_differences() -> None:
     script = [
         AssistantMessage(content=None, tool_calls=[ToolCall(id=f"c{i}", name="search_files", arguments=args)])
         for i, args in enumerate(['{"sku": "ВС11"}', '{"sku":  "ВС11"}', '{ "sku": "ВС11" }'])
-    ] + [AssistantMessage(content="Финал.")]
+    ] + [AssistantMessage(content="Хватит, отвечаю.")]
     llm = FakeLLM(script)
     res = _run_repeat(llm, max_repeat_calls=3, max_rounds=10)
-    assert "Останавливаюсь" in res.answer
+    assert res.answer == "Хватит, отвечаю."
 
 
 def test_repeat_breaker_disabled() -> None:

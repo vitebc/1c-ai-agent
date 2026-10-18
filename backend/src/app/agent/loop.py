@@ -106,6 +106,72 @@ def _full_assistant_text(msg: AssistantMessage) -> str:
     return f"{text}\nTOOL_CALLS: {calls}" if calls else text
 
 
+async def _finish_with_final_answer(
+    *,
+    llm: ChatLLM,
+    messages: list[dict[str, Any]],
+    why: str,
+    fallback: str,
+    called: list[str],
+    errors: int,
+    prompt_tokens: int,
+    completion_tokens: int,
+) -> AgentResult:
+    """Предохранитель сработал: дать модели ОДИН шанс ответить из того, что уже есть.
+
+    Живой случай: агент нашёл вхождение в раунде 7 и прочитал контекст в раунде 13,
+    но продолжал перебор до стопа — и пользователь вместо ответа получал тишину
+    про инструмент. Здесь инструменты отключены (пустой список схем), поэтому
+    модель обязана сформулировать текст, а не звать тулзы снова.
+
+    Если модель всё равно молчит или сама просит ещё данных — отдаём fallback.
+    """
+    final_messages = [
+        *messages,
+        {
+            "role": "user",
+            "content": (
+                f"Стоп: {why}. Инструменты больше недоступны — новых вызовов не будет.\n\n"
+                "Ответь пользователю СЕЙЧАС, опираясь только на то, что уже нашёл в диалоге. "
+                "Если что-то нашёл — расскажи это своими словами и честно скажи, чего не хватило. "
+                "Если ничего не нашёл — так и напиши и предложи, что уточнить. "
+                "Не предлагай новых поисков и не вызывай инструменты."
+            ),
+        },
+    ]
+    try:
+        resp = await llm.complete(final_messages, [])
+    except Exception as e:  # noqa: BLE001 — LLM упал: отдаём заготовку, петлю не роняем
+        log.warning("финальный ответ не удался (%s), отдаю заготовку", e)
+        return AgentResult(
+            answer=fallback,
+            rounds=len(called),
+            tool_calls=called,
+            tool_errors=errors,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+        )
+    if resp.usage is not None:
+        prompt_tokens += resp.usage.prompt_tokens
+        completion_tokens += resp.usage.completion_tokens
+    text = (resp.content or "").strip()
+    log.info(
+        "предохранитель сработал (%s); финальный ответ от модели: %s",
+        why,
+        _preview(text, 200) or "(пусто)",
+    )
+    if not text or text.startswith(("Стоп:", "Я не могу вызвать")):
+        text = fallback
+    return AgentResult(
+        answer=text,
+        rounds=len(called),
+        tool_calls=called,
+        tool_errors=errors,
+        prompt_tokens=prompt_tokens,
+        completion_tokens=completion_tokens,
+    )
+
+
 async def run_agent(
     *,
     llm: ChatLLM,
@@ -248,18 +314,21 @@ async def run_agent(
                     "%d раз подряд, стоп",
                     user_id, base, agent, skill, call.name, consec_empty,
                 )
-                return AgentResult(
-                    answer=(
-                        f"Останавливаюсь: инструмент {call.name} {consec_empty} раз подряд вернул "
-                        f"«ничего не найдено» (последний ответ: {_preview(feedback, 300)}). "
-                        "Похоже, выбранный инструмент не подходит для этой задачи — например, "
-                        "поиск по имени файла не видит объекты, описанные только в XML. "
-                        "Скажите пользователю, что автоматический поиск не дал результата, "
-                        "и предложите уточнить объект или поискать по другому признаку."
+                return await _finish_with_final_answer(
+                    llm=llm,
+                    messages=messages,
+                    why=(
+                        f"инструмент {call.name} {consec_empty} раз подряд вернул «ничего не найдено» "
+                        f"(последний ответ: {_preview(feedback, 300)}). Похоже, выбранный инструмент "
+                        "не подходит для этой задачи — например, поиск по имени файла не видит "
+                        "объекты, описанные только в XML"
                     ),
-                    rounds=len(called),
-                    tool_calls=called,
-                    tool_errors=errors,
+                    fallback=(
+                        "Автоматический поиск не дал результата: инструмент несколько раз подряд "
+                        "не нашёл ничего подходящего. Уточните объект или поищите по другому признаку."
+                    ),
+                    called=called,
+                    errors=errors,
                     prompt_tokens=prompt_tokens,
                     completion_tokens=completion_tokens,
                 )
@@ -275,18 +344,19 @@ async def run_agent(
                     _preview(repeat_key[1], 200),
                     repeat_calls[repeat_key],
                 )
-                return AgentResult(
-                    answer=(
-                        f"Останавливаюсь: инструмент {call.name} уже {repeat_calls[repeat_key]} раз "
-                        f"вернул один и тот же результат на одни и те же аргументы "
-                        f"({_preview(repeat_key[1], 200)}), продолжать перебор бессмысленно. "
-                        f"Последний ответ инструмента: {_preview(feedback, 300)}. "
-                        "Скажите пользователю, что по этим условиям инструмент не даёт результата, "
-                        "и предложите другой вопрос или другую формулировку."
+                return await _finish_with_final_answer(
+                    llm=llm,
+                    messages=messages,
+                    why=(
+                        f"инструмент {call.name} уже {repeat_calls[repeat_key]} раз вызван с одними и теми же "
+                        f"аргументами ({_preview(repeat_key[1], 200)}) и вернул то же самое"
                     ),
-                    rounds=len(called),
-                    tool_calls=called,
-                    tool_errors=errors,
+                    fallback=(
+                        "Автоматический поиск зациклился на одинаковых вызовах и не дал результата. "
+                        "Уточните объект или поищите по другому признаку."
+                    ),
+                    called=called,
+                    errors=errors,
                     prompt_tokens=prompt_tokens,
                     completion_tokens=completion_tokens,
                 )
